@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/AI-CROPSTRESS/static/css/main.cc6f3de3.css",
-    "main.js": "/AI-CROPSTRESS/static/js/main.b2f3c609.js",
-    "static/js/453.20359781.chunk.js": "/AI-CROPSTRESS/static/js/453.20359781.chunk.js",
-    "index.html": "/AI-CROPSTRESS/index.html",
-    "main.cc6f3de3.css.map": "/AI-CROPSTRESS/static/css/main.cc6f3de3.css.map",
-    "main.b2f3c609.js.map": "/AI-CROPSTRESS/static/js/main.b2f3c609.js.map",
-    "453.20359781.chunk.js.map": "/AI-CROPSTRESS/static/js/453.20359781.chunk.js.map"
+    "main.css": "./static/css/main.cc6f3de3.css",
+    "main.js": "./static/js/main.3bdfe7a0.js",
+    "static/js/453.20359781.chunk.js": "./static/js/453.20359781.chunk.js",
+    "index.html": "./index.html",
+    "main.cc6f3de3.css.map": "./static/css/main.cc6f3de3.css.map",
+    "main.3bdfe7a0.js.map": "./static/js/main.3bdfe7a0.js.map",
+    "453.20359781.chunk.js.map": "./static/js/453.20359781.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.cc6f3de3.css",
-    "static/js/main.b2f3c609.js"
+    "static/js/main.3bdfe7a0.js"
   ]
 }
