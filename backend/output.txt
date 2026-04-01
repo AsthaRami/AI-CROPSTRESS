@@ -1,0 +1,38 @@
+140:         if not message:
+141:              return jsonify({"key": "default", "response": "Please ask a question."}), 200
+142: 
+143:         # Attempt to use primary GenAI (Google Gemini)
+144:         api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+145:         if HAS_GENAI and api_key and api_key != "AIzaSyXXXXXX":
+146:             try:
+147:                 genai.configure(api_key=api_key)
+148:                 # Fallback sequentially through models starting with flash 1.5
+149:                 model = genai.GenerativeModel('gemini-1.5-flash')
+150:                 
+151:                 lang_map = {'en': 'English', 'hi': 'Hindi', 'gu': 'Gujarati'}
+152:                 target_lang = lang_map.get(lang, 'English')
+153:                 
+154:                 system_prompt = f"You are 'Kisan AI', an agricultural assistant bot for farmers. Answer queries thoughtfully in {target_lang}."
+155:                 response = model.generate_content(f"{system_prompt}\n\nUser Question: {message}")
+156:                 
+157:                 return jsonify({"key": "dynamic", "response": response.text.strip()}), 200
+158:             except Exception as model_err:
+159:                 print(f"GenAI API Error (falling back to offline Wikipedia logic): {str(model_err)}")
+160:                 pass
+161: 
+162:         # If GenAI fails (missing key, 404 model not found, library error), use our Smart Offline KNOWLEDGE + Wiki tool
+163:         final_answer = advanced_offline_processor(message, lang)
+164:         return jsonify({"key": "dynamic", "response": final_answer}), 200
+165:         
+166:     except Exception as e:
+167:         print(f"CRITICAL ERROR in kisan-bot: {e}")
+168:         return jsonify({"key": "default", "response": "System error. Please try again later."}), 200�ह एक उत्कृष्ट कृषि प्रश्न है। विस्तृत निदान के लिए, मैं पत्तियों पर हमारे क्रॉप स्कैनर का उपयोग करने, या मिट्टी की नमी की बारीकी से निगरानी करने की सलाह देता हूं।"
+169:            ans_gu = "આ એક ઉત્કૃષ્ટ કૃષિ પ્રશ્ન છે. વિગતવાર નિદાન માટે, હું પાંદડા પર અમારા પાક સ્કેનરનો ઉપયોગ કરવાની અથવા જમીનના ભેજનું નિરીક્ષણ કરવાની ભલામણ કરું છું."
+170: 
+171:         # Select translated fallback
+172:         final_ans = ans_en
+173:         if lang == 'hi': final_ans = ans_hi
+174:         elif lang == 'gu': final_ans = ans_gu
+175:         
+176:         return jsonify({"key": "dynamic", "response": final_ans}), 200
+177: 
