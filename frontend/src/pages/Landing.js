@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import { translations } from '../translations';
 
 export default function Landing({ onLoginClick, onSignupClick, theme, toggleTheme, lang, changeLang }) {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+  
   const t = translations[lang] || translations.en;
   const isDark = theme === 'black';
 
@@ -14,10 +17,17 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const [scrolled, setScrolled] = useState(false);
+
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const isMobile = windowWidth < 1024;
@@ -261,6 +271,16 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
         )}
       </AnimatePresence>
 
+      {/* Dynamic Background Polish */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+        zIndex: -1, pointerEvents: 'none',
+        background: isDark 
+          ? 'radial-gradient(circle at 50% -10%, rgba(34,197,94,0.08) 0%, transparent 60%), radial-gradient(circle at 0% 100%, rgba(59,130,246,0.04) 0%, transparent 50%)'
+          : 'radial-gradient(circle at 50% -10%, rgba(34,197,94,0.03) 0%, transparent 60%)',
+        opacity: 1
+      }} />
+
       {/* Floating Interactive Sidebar */}
       {!isSmallMobile && (
         <div style={{ position: 'fixed', left: 24, top: '50%', transform: 'translateY(-50%)', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -276,10 +296,12 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
               whileHover={{ x: 8, scale: 1.1 }}
               onClick={() => setActiveModal(item.id)}
               style={{
-                width: 64, height: 64, borderRadius: 20, background: isDark ? 'rgba(15,23,42,0.8)' : '#ffffff',
+                width: 60, height: 60, borderRadius: 18, background: isDark ? 'rgba(15,23,42,0.6)' : 'rgba(255,255,255,0.8)',
+                backdropFilter: 'blur(15px)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.6rem', cursor: 'pointer', border: `1px solid ${borderCol}`,
-                boxShadow: '0 15px 35px rgba(0,0,0,0.1)', position: 'relative'
+                fontSize: '1.5rem', cursor: 'pointer', border: `1px solid ${borderCol}`,
+                boxShadow: isDark ? '0 15px 35px rgba(0,0,0,0.4)' : '0 15px 35px rgba(0,0,0,0.1)', 
+                position: 'relative'
               }}
             >
               {item.icon}
@@ -298,13 +320,27 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
         </div>
       )}
 
+      {/* Scroll Progress Bar */}
+      <motion.div 
+        style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, height: 4, 
+          background: 'linear-gradient(90deg, #22c55e, #10b981)', 
+          transformOrigin: '0%', zIndex: 3000, scaleX
+        }} 
+      />
+
       {/* Navbar */}
       <nav style={{
         position: 'fixed', top: 0, width: '100%', zIndex: 2500,
-        background: isDark ? 'rgba(2, 6, 23, 0.75)' : 'rgba(248, 250, 252, 0.75)',
-        backdropFilter: 'blur(20px)', borderBottom: `1px solid ${borderCol}`,
-        padding: isSmallMobile ? '12px 20px' : '16px 64px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing:'border-box'
+        background: scrolled 
+          ? (isDark ? 'rgba(2, 6, 23, 0.85)' : 'rgba(255, 255, 255, 0.85)')
+          : 'transparent',
+        backdropFilter: scrolled ? 'blur(30px)' : 'none',
+        borderBottom: scrolled ? `1px solid ${borderCol}` : '1px solid transparent',
+        padding: isSmallMobile ? (scrolled ? '12px 20px' : '20px 20px') : (scrolled ? '16px 80px' : '30px 80px'),
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing:'border-box',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: scrolled ? (isDark ? '0 10px 50px rgba(0,0,0,0.3)' : '0 10px 50px rgba(0,0,0,0.05)') : 'none'
       }}>
         <div 
           style={{ fontSize: isSmallMobile ? '1.1rem' : '1.4rem', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
@@ -353,8 +389,8 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
         position: 'relative', minHeight: '100vh', display: 'flex', 
         flexDirection: isMobile ? 'column' : 'row',
         alignItems: 'center', justifyContent: 'center', 
-        padding: isMobile ? '120px 24px 60px' : '120px 80px 0 100px',
-        overflow: 'hidden', gap: isMobile ? 40 : 60
+        padding: isMobile ? '140px 24px 100px' : '120px 80px 100px 100px',
+        overflow: 'hidden', gap: isMobile ? 60 : 80
       }}>
         {/* Glow effect */}
         <div style={{ position: 'absolute', top: '15%', left: '-5%', width: '40%', height: '40%', background: 'radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)', zIndex: 0 }} />
@@ -376,27 +412,45 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
             {t.heroSubtitle}
           </motion.p>
           <motion.div variants={itemVariants} style={{ display: 'flex', gap: 16, marginTop: 40, justifyContent: isMobile ? 'center' : 'flex-start', flexWrap: 'wrap' }}>
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.05, boxShadow: '0 25px 50px rgba(34, 197, 94, 0.5)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={onSignupClick}
-              style={{ padding: isSmallMobile ? '16px 32px' : '20px 48px', background: 'linear-gradient(135deg, #22c55e, #10b981)', color: 'white', borderRadius: 20, border: 'none', fontWeight: 900, fontSize: isSmallMobile ? '1rem' : '1.1rem', cursor: 'pointer', boxShadow: '0 20px 45px rgba(34, 197, 94, 0.4)' }}
+              style={{ padding: isSmallMobile ? '16px 32px' : '20px 48px', background: 'linear-gradient(135deg, #22c55e, #10b981)', color: 'white', borderRadius: 20, border: 'none', fontWeight: 950, fontSize: isSmallMobile ? '1rem' : '1.1rem', cursor: 'pointer', boxShadow: '0 20px 45px rgba(34, 197, 94, 0.4)', transition: 'all 0.3s ease' }}
             >
               Start Protection →
-            </button>
-            <button 
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05, background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => document.getElementById('features').scrollIntoView({ behavior: 'smooth' })}
-              style={{ padding: isSmallMobile ? '16px 32px' : '20px 48px', background: 'rgba(255,255,255,0.05)', color: txtMain, borderRadius: 20, border: `1px solid ${borderCol}`, fontWeight: 800, fontSize: isSmallMobile ? '1rem' : '1.1rem', cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+              style={{ padding: isSmallMobile ? '16px 32px' : '20px 48px', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)', color: txtMain, borderRadius: 20, border: `1px solid ${borderCol}`, fontWeight: 800, fontSize: isSmallMobile ? '1rem' : '1.1rem', cursor: 'pointer', backdropFilter: 'blur(10px)', transition: 'all 0.3s ease' }}
             >
               Live Demo ↓
-            </button>
+            </motion.button>
          </motion.div>
         </motion.div>
          {/* Hero Image Container */}
          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }}
+            initial={{ opacity: 0, scale: 0.95, x: 50 }} animate={{ opacity: 1, scale: 1, x: 0 }} transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
             style={{ flex: 1, display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end', position: 'relative', zIndex: 2, width: '100%' }}
          >
-            <div style={{ position: 'relative', width: isSmallMobile ? '80%' : '90%', maxWidth: 650, paddingBottom: isSmallMobile ? '80%' : '90%' }}>
-            <img src={process.env.PUBLIC_URL + "/smart_farming_hero.png"} />               <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '50%', height: '50%', background: 'linear-gradient(135deg, #22c55e, #10b981)', filter: 'blur(80px)', opacity: 0.2, zIndex: -1 }} />
+            <div style={{ 
+               position: 'relative', 
+               width: isSmallMobile ? '95%' : '100%', 
+               maxWidth: 700, 
+               borderRadius: '40px', 
+               overflow: 'hidden', 
+               boxShadow: isDark ? '0 50px 100px rgba(0,0,0,0.5)' : '0 40px 80px rgba(0,0,0,0.15)',
+               border: isDark ? '1px solid rgba(34,197,94,0.2)' : '1px solid rgba(0,0,0,0.05)',
+               background: isDark ? 'rgba(255,255,255,0.02)' : 'white'
+            }}>
+              <img 
+                src={process.env.PUBLIC_URL + "/smart_farming_hero.png"} 
+                alt="AI Crop Stress Detection Assistant"
+                style={{ width: '100%', height: 'auto', display: 'block', transition: 'transform 0.5s' }} 
+              />
+              <div style={{ position: 'absolute', top: '-20%', right: '-20%', width: '60%', height: '60%', background: 'radial-gradient(circle, rgba(34,197,94,0.3) 0%, transparent 70%)', filter: 'blur(60px)', zIndex: -1 }} />
             </div>
          </motion.div>
       </section>
@@ -410,8 +464,18 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
           </motion.div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', gap: 60, alignItems: 'center' }}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }}>
-            <img src={process.env.PUBLIC_URL + "/crop_ai_feature.png"} />            </motion.div>
+            <motion.div 
+               initial={{ scale: 0.95, opacity: 0 }} 
+               whileInView={{ scale: 1, opacity: 1 }}
+               viewport={{ once: true }}
+               style={{
+                  borderRadius: 32, overflow: 'hidden', 
+                  boxShadow: isDark ? '0 40px 80px rgba(0,0,0,0.4)' : '0 30px 60px rgba(0,0,0,0.1)',
+                  border: `1px solid ${borderCol}`
+               }}
+            >
+              <img src={process.env.PUBLIC_URL + "/crop_ai_feature.png"} alt="Crop AI Features" style={{ width: '100%', height: 'auto', display: 'block' }} />            
+            </motion.div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               {[
                 { title: "Visual Feature Extraction", desc: "CNN-based identification of pixel-level stress symptoms before they trigger system-wide failure.", icon: "🔬" },
