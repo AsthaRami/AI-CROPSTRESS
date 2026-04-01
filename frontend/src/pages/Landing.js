@@ -396,8 +396,7 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
             style={{ flex: 1, display: 'flex', justifyContent: isMobile ? 'center' : 'flex-end', position: 'relative', zIndex: 2, width: '100%' }}
          >
             <div style={{ position: 'relative', width: isSmallMobile ? '80%' : '90%', maxWidth: 650, paddingBottom: isSmallMobile ? '80%' : '90%' }}>
-               <img src="/smart_farming_hero.png" alt="Smart Farming" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: isSmallMobile ? 30 : 50, boxShadow: '0 40px 80px rgba(0,0,0,0.4)', border: `1px solid rgba(255,255,255,0.1)` }} />
-               <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '50%', height: '50%', background: 'linear-gradient(135deg, #22c55e, #10b981)', filter: 'blur(80px)', opacity: 0.2, zIndex: -1 }} />
+            <img src={process.env.PUBLIC_URL + "/smart_farming_hero.png"} />               <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '50%', height: '50%', background: 'linear-gradient(135deg, #22c55e, #10b981)', filter: 'blur(80px)', opacity: 0.2, zIndex: -1 }} />
             </div>
          </motion.div>
       </section>
@@ -412,8 +411,7 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', gap: 60, alignItems: 'center' }}>
             <motion.div initial={{ scale: 0.9, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }}>
-              <img src="/crop_ai_feature.png" alt="AI analysis" style={{ width: '100%', borderRadius: 40, boxShadow: '0 30px 60px rgba(0,0,0,0.3)', border: `1px solid ${borderCol}` }} />
-            </motion.div>
+            <img src={process.env.PUBLIC_URL + "/crop_ai_feature.png"} />            </motion.div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               {[
                 { title: "Visual Feature Extraction", desc: "CNN-based identification of pixel-level stress symptoms before they trigger system-wide failure.", icon: "🔬" },

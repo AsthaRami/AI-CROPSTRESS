@@ -102,8 +102,7 @@ export default function Login({ onLogin, mode = 'login', onBackToLanding, theme,
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      background: `url("/smart_farming_hero.png") center/cover no-repeat fixed`,
-      fontFamily: '"Outfit", sans-serif',
+      background: `url(${process.env.PUBLIC_URL + "/smart_farming_hero.png"}) center/cover no-repeat fixed`,      fontFamily: '"Outfit", sans-serif',
       position: 'relative',
       overflow: 'hidden'
     }}>
