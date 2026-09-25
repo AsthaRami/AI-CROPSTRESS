@@ -422,10 +422,15 @@ export default function Dashboard({ user, onLogout, onUpdateProfile, theme, togg
   };
 
   const speakText = (text) => {
+    if (!text) return;
     const synth = window.speechSynthesis;
     if (!synth) return;
     synth.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
+    
+    // Strip markdown formatting for natural speech
+    const cleanText = text.replace(/[*_~`#]+/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1');
+    
+    const utter = new SpeechSynthesisUtterance(cleanText);
     utter.lang = lang === 'hi' ? 'hi-IN' : (lang === 'gu' ? 'gu-IN' : 'en-US');
     synth.speak(utter);
   };
@@ -605,9 +610,9 @@ export default function Dashboard({ user, onLogout, onUpdateProfile, theme, togg
             <div style={{ display:'flex', alignItems:'center', gap: isSmallMobile ? 8 : 16 }}>
               {!isSmallMobile && (
                 <select value={lang} onChange={(e) => changeLang(e.target.value)} style={{ background:'transparent', color:txtMain, border:'none', fontSize:'0.85rem', fontWeight:700, cursor:'pointer' }}>
-                  <option value="en">EN</option>
-                  <option value="hi">HI</option>
-                  <option value="gu">GU</option>
+                  <option value="en" style={{ color: '#000' }}>EN</option>
+                  <option value="hi" style={{ color: '#000' }}>HI</option>
+                  <option value="gu" style={{ color: '#000' }}>GU</option>
                 </select>
               )}
               
@@ -682,9 +687,9 @@ export default function Dashboard({ user, onLogout, onUpdateProfile, theme, togg
               <div style={{ marginTop: 'auto', paddingTop: 30, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <select value={lang} onChange={(e) => changeLang(e.target.value)} style={{ flex: 1, background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color:txtMain, border:`1px solid ${borderCol}`, borderRadius: 12, padding: '12px', fontWeight: 700, fontSize: '0.9rem', outline: 'none' }}>
-                      <option value="en" style={{ background: isDark ? '#1e293b' : '#fff', color: txtMain }}>English</option>
-                      <option value="hi" style={{ background: isDark ? '#1e293b' : '#fff', color: txtMain }}>Hindi</option>
-                      <option value="gu" style={{ background: isDark ? '#1e293b' : '#fff', color: txtMain }}>Gujarati</option>
+                      <option value="en" style={{ color: '#000' }}>English</option>
+                      <option value="hi" style={{ color: '#000' }}>Hindi</option>
+                      <option value="gu" style={{ color: '#000' }}>Gujarati</option>
                     </select>
                   </div>
                   <button 
@@ -1066,7 +1071,10 @@ export default function Dashboard({ user, onLogout, onUpdateProfile, theme, togg
                   <button onClick={createNewChat} style={{ flex: 1, padding: isSmallMobile ? '10px 15px' : '12px 24px', borderRadius:20, border:'none', background:'#22c55e', color:'white', fontWeight:900, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:10, boxShadow:'0 10px 30px rgba(34,197,94,0.3)', fontSize: isSmallMobile ? '0.8rem' : '1rem' }}>
                     <span>+</span> {t.newChat}
                   </button>
-                  <button onClick={() => setSpeechEnabled(!speechEnabled)} style={{ flex: 1, padding: isSmallMobile ? '10px 15px' : '10px 20px', borderRadius:20, border:`1px solid ${borderCol}`, background: speechEnabled?'rgba(34,197,94,0.1)':'transparent', color: speechEnabled?'#22c55e':txtSec, fontWeight:900, cursor:'pointer', fontSize: isSmallMobile ? '0.75rem' : '0.9rem' }}>
+                  <button onClick={() => {
+                      if (speechEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+                      setSpeechEnabled(!speechEnabled);
+                    }} style={{ flex: 1, padding: isSmallMobile ? '10px 15px' : '10px 20px', borderRadius:20, border:`1px solid ${borderCol}`, background: speechEnabled?'rgba(34,197,94,0.1)':'transparent', color: speechEnabled?'#22c55e':txtSec, fontWeight:900, cursor:'pointer', fontSize: isSmallMobile ? '0.75rem' : '0.9rem' }}>
                     {speechEnabled ? '🔊 AUDIO ON' : '🔇 AUDIO OFF'}
                   </button>
                </div>
@@ -1650,4 +1658,3 @@ export default function Dashboard({ user, onLogout, onUpdateProfile, theme, togg
     </div>
   );
 }
-

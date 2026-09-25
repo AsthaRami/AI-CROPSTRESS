@@ -355,9 +355,9 @@ export default function Landing({ onLoginClick, onSignupClick, theme, toggleThem
             background: 'transparent', color: txtMain, border: `1px solid ${borderCol}`,
             borderRadius: '10px', padding: '6px 8px', fontSize: '0.85rem', cursor: 'pointer', outline: 'none'
           }}>
-            <option value="en" style={{ background: isDark ? '#0f172a' : '#fff', color: isDark ? '#fff' : '#000' }}>EN</option>
-            <option value="hi" style={{ background: isDark ? '#0f172a' : '#fff', color: isDark ? '#fff' : '#000' }}>HI</option>
-            <option value="gu" style={{ background: isDark ? '#0f172a' : '#fff', color: isDark ? '#fff' : '#000' }}>GU</option>
+            <option value="en" style={{ color: '#000' }}>EN</option>
+            <option value="hi" style={{ color: '#000' }}>HI</option>
+            <option value="gu" style={{ color: '#000' }}>GU</option>
           </select>
 
           <button onClick={toggleTheme} style={{

@@ -127,9 +127,9 @@ export default function Login({ onLogin, mode = 'login', onBackToLanding, theme,
           <select value={lang} onChange={(e) => changeLang(e.target.value)} style={{
             background: 'transparent', color: txtMain, border: `1px solid ${borderCol}`, borderRadius: '10px', padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer'
           }}>
-            <option value="en">EN</option>
-            <option value="hi">HI</option>
-            <option value="gu">GU</option>
+            <option value="en" style={{ color: '#000' }}>EN</option>
+            <option value="hi" style={{ color: '#000' }}>HI</option>
+            <option value="gu" style={{ color: '#000' }}>GU</option>
           </select>
           <button onClick={toggleTheme} style={{
             background: isDark ? '#fff' : '#000', color: isDark ? '#000' : '#fff', border: 'none', borderRadius: '12px', width: '34px', height: '34px', cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center'

@@ -72,11 +72,16 @@ def detect_image():
       crop_id = None
 
     try:
-        # Run AI analysis (with fallback if models fail)
+        # Run AI analysis (with Quality Guard check)
         try:
             analysis = ai_service.analyze(filepath)
         except Exception as analyze_err:
             analysis = ai_service.analyze_fallback(filepath, str(analyze_err))
+
+        if analysis.get('is_rejected'):
+            return jsonify({
+                'error': analysis.get('error', 'Non-leaf image detected. Please upload a clear crop leaf photo.')
+            }), 400
 
         # Persist detection in database
         # user_id was set above (fallback to 1 if missing)
@@ -101,13 +106,13 @@ def detect_image():
         disease_name = (analysis.get('disease') or {}).get('type', 'Unknown').replace('___', ' - ').replace('_', ' ')
         severity = analysis.get('severity')
 
-        if severity == 'critical':
-            msg = f'ALERT: {crop_name} stress detected ({disease_name}). Severity: CRITICAL.'
+        if severity in ('critical', 'high'):
+            msg = f'ALERT: {crop_name} stress detected ({disease_name}). Severity: {severity.upper()}.'
             alert = Alert(
                 user_id=int(user_id),
                 detection_id=detection.id,
                 message=msg,
-                severity='critical',
+                severity=severity,
                 status='active',
             )
             db.session.add(alert)
@@ -120,9 +125,9 @@ def detect_image():
                 if user and user.email:
                     print(f"Sending Critical Alert Email to {user.email}")
                     email_msg = Message(
-                        subject=f"CRITICAL CROP ALERT: {crop_name}",
+                        subject=f"{severity.upper()} CROP ALERT: {crop_name}",
                         recipients=[user.email],
-                        body=f"Hello {user.name},\n\nOur AI detected {msg} in your recent scan.\n\nSeverity: CRITICAL\nTreatment: {analysis.get('treatment')}\n\nPlease check your dashboard for details.\n\nBest regards,\nAI CropStress Team"
+                        body=f"Hello {user.name},\n\nOur AI detected {msg} in your recent scan.\n\nSeverity: {severity.upper()}\nTreatment: {analysis.get('treatment')}\n\nPlease check your dashboard for details.\n\nBest regards,\nAI CropStress Team"
                     )
                     mail.send(email_msg)
                     print("Email sent successfully!")
@@ -131,8 +136,11 @@ def detect_image():
                 print(f"Failed to send alert email: {mail_err}")
         else:
             # Positive message & Healthy email
-            is_truly_healthy = severity in ('low', 'none', None) or 'healthy' in disease_name.lower()
-            positive_message = f"Great news! Your {crop_name} is {'healthy' if is_truly_healthy else 'not in critical condition'}. Our AI vision has checked the leaf surface for common threats."
+            is_truly_healthy = 'healthy' in disease_name.lower()
+            if is_truly_healthy:
+                positive_message = f"Great news! Your {crop_name} is in clean, healthy condition. Our AI vision confirmed no disease symptoms."
+            else:
+                positive_message = f"AI Attention: Symptoms of {disease_name} detected on your {crop_name}. Immediate treatment recommended."
             
             # --- EMAIL NOTIFICATION (HEALTHY/STABLE) ---
             try:
@@ -170,6 +178,7 @@ def detect_image():
                 traceback.print_exc()
 
         gradcam_filename = analysis.get('gradcam_path')
+        infection_overlay_filename = analysis.get('infection_overlay_path')
         response = {
             **analysis,
             'id': detection.id,
@@ -177,6 +186,7 @@ def detect_image():
             'detected_at': str(detection.detected_at),
             'image_url': f'/uploads/{filename}',
             'gradcam_url': f'/uploads/{gradcam_filename}' if gradcam_filename else None,
+            'infection_overlay_url': f'/uploads/{infection_overlay_filename}' if infection_overlay_filename else None,
             'email_sent': email_sent,
             'positive_message': positive_message
         }
@@ -194,6 +204,242 @@ def detect_image():
             'error': f'Analysis failed: {err_msg}',
             'traceback': traceback.format_exc() if os.getenv('FLASK_ENV') == 'development' else None
         }), 500
+
+
+@detect_bp.route('/api/detect/batch', methods=['POST'])
+def detect_batch():
+    print('--- NEW BATCH DETECTION REQUEST ---')
+    from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+    except Exception as jwt_err:
+        print(f"JWT Verification Warning: {jwt_err}")
+        user_id = None
+
+    if user_id is None:
+        user_id = 1
+
+    files = request.files.getlist('images')
+    if not files or len(files) == 0:
+        if 'image' in request.files:
+            files = request.files.getlist('image')
+
+    if not files or len(files) == 0 or files[0].filename == '':
+        return jsonify({'error': 'No images uploaded for batch scan. Please upload 2 to 10 leaf photos.'}), 400
+
+    upload_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'uploads'))
+    os.makedirs(upload_folder, exist_ok=True)
+
+    individual_results = []
+    healthy_count = 0
+    diseased_count = 0
+    disease_counts = {}
+
+    for f in files:
+        if not f or f.filename == '':
+            continue
+        
+        filename = str(uuid.uuid4()) + '.jpg'
+        filepath = os.path.join(upload_folder, filename)
+        f.save(filepath)
+
+        try:
+            analysis = ai_service.analyze(filepath)
+        except Exception as err:
+            analysis = ai_service.analyze_fallback(filepath, str(err))
+
+        if analysis.get('is_rejected'):
+            status_tag = analysis.get('status', '⛔ NON-CROP REJECTED')
+            individual_results.append({
+                'id': None,
+                'original_name': f.filename,
+                'crop_name': 'Non-Crop Asset',
+                'disease_type': status_tag,
+                'raw_disease': status_tag,
+                'confidence': 0.0,
+                'severity': 'low',
+                'is_healthy': False,
+                'is_rejected': True,
+                'status': status_tag,
+                'image_url': f'/uploads/{filename}',
+                'gradcam_url': None,
+                'infection_overlay_url': None,
+                'disease': {'type': status_tag, 'confidence': 0.0},
+                'pests': [],
+                'pest_solution': {},
+                'bounding_boxes': [],
+                'treatment': analysis.get('error', 'Image Quality Guard Rejection'),
+                'recommendations': ['Please upload a clear crop leaf photo.'],
+                'details': {}
+            })
+            continue
+
+        raw_disease = analysis.get('disease', {}).get('type', 'Unknown')
+        confidence = analysis.get('disease', {}).get('confidence', 0.0)
+        severity = analysis.get('severity', 'low')
+        gradcam_filename = analysis.get('gradcam_path')
+        infection_overlay_filename = analysis.get('infection_overlay_path')
+
+        crop_name = raw_disease.split('___')[0] if '___' in raw_disease else 'Crop'
+        display_disease = raw_disease.replace('___', ' - ').replace('_', ' ')
+
+        # Save to DB
+        det_id = None
+        try:
+            det = Detection(
+                user_id=int(user_id),
+                crop_id=None,
+                image_path=filepath,
+                stress_type=raw_disease,
+                confidence=confidence,
+                severity=severity,
+                gradcam_path=gradcam_filename,
+                bounding_box=analysis.get('bounding_boxes'),
+                treatment=analysis.get('treatment')
+            )
+            db.session.add(det)
+            db.session.commit()
+            det_id = det.id
+        except Exception as db_err:
+            db.session.rollback()
+            print(f"Batch DB save warning: {db_err}")
+
+        is_healthy = 'healthy' in raw_disease.lower() or severity in ('low', 'none')
+        if is_healthy:
+            healthy_count += 1
+        else:
+            diseased_count += 1
+
+        disease_counts[display_disease] = disease_counts.get(display_disease, 0) + 1
+
+        individual_results.append({
+            'id': det_id,
+            'original_name': f.filename,
+            'crop_name': crop_name,
+            'disease_type': display_disease,
+            'raw_disease': raw_disease,
+            'confidence': confidence,
+            'severity': severity,
+            'is_healthy': is_healthy,
+            'image_url': f'/uploads/{filename}',
+            'gradcam_url': f'/uploads/{gradcam_filename}' if gradcam_filename else None,
+            'infection_overlay_url': f'/uploads/{infection_overlay_filename}' if infection_overlay_filename else None,
+            'disease': analysis.get('disease', {}),
+            'pests': analysis.get('pests', []),
+            'pest_solution': analysis.get('pest_solution', {}),
+            'bounding_boxes': analysis.get('bounding_boxes', []),
+            'treatment': analysis.get('treatment'),
+            'recommendations': analysis.get('recommendations', []),
+            'details': analysis.get('disease', {}).get('details', {})
+        })
+
+    total_scanned = len(individual_results)
+    valid_scanned = max(1, total_scanned)
+
+    healthy_pct = round((healthy_count / valid_scanned) * 100, 1)
+    diseased_pct = round((diseased_count / valid_scanned) * 100, 1)
+
+    if healthy_pct >= 80.0:
+        overall_status = 'HEALTHY_FIELD'
+        risk_level = 'SAFE'
+        summary_msg = f"🌿 Excellent Farm Condition! {healthy_pct}% of sampled leaves are healthy ({healthy_count}/{total_scanned} sample points)."
+    elif healthy_pct >= 50.0:
+        overall_status = 'MODERATE_RISK'
+        risk_level = 'WARNING'
+        summary_msg = f"⚠️ Moderate Farm Stress Alert: {diseased_pct}% of sampled leaves show disease symptoms ({diseased_count}/{total_scanned} sample points)."
+    else:
+        overall_status = 'HIGH_RISK_OUTBREAK'
+        risk_level = 'CRITICAL'
+        summary_msg = f"🚨 Critical Infection Outbreak: {diseased_pct}% of sampled leaves infected ({diseased_count}/{total_scanned} sample points). Immediate action required!"
+
+    if diseased_count > 0:
+        try:
+            alert_msg = f"MULTI-LEAF BATCH SCAN: {diseased_pct}% farm infection detected across {total_scanned} leaf samples."
+            alert = Alert(
+                user_id=int(user_id),
+                message=alert_msg,
+                severity='critical' if diseased_pct >= 50 else 'medium',
+                status='active'
+            )
+            db.session.add(alert)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    # --- EMAIL NOTIFICATION (CRITICAL OR HEALTHY) ---
+    email_sent = False
+    try:
+        from ..models.user import User
+        target_user = db.session.get(User, int(user_id))
+        dest_email = None
+        if target_user and target_user.email:
+            dest_email = target_user.email
+        else:
+            dest_email = os.getenv("MAIL_USERNAME")
+
+        if dest_email:
+            if risk_level == 'CRITICAL' or diseased_count > 0:
+                subject = f"🚨 CRITICAL FARM ALERT: {diseased_pct}% Infection Rate ({diseased_count}/{total_scanned} Leaves Stressed)"
+                body_msg = (
+                    f"Hello {getattr(target_user, 'name', 'Farmer')},\n\n"
+                    f"Our Multi-Leaf Batch AI Scanner analyzed {total_scanned} sample leaves from your field.\n\n"
+                    f"RESULT SUMMARY:\n"
+                    f"• Overall Status: {overall_status} ({risk_level})\n"
+                    f"• Diseased Leaves: {diseased_count} of {total_scanned} ({diseased_pct}%)\n"
+                    f"• Healthy Leaves: {healthy_count} of {total_scanned} ({healthy_pct}%)\n"
+                    f"• Primary Conditions Identified: {', '.join(disease_counts.keys())}\n\n"
+                    f"{summary_msg}\n\n"
+                    f"Immediate action is recommended. Check your dashboard for detailed leaf diagnostic reports.\n\n"
+                    f"Best regards,\nKisan AI Team"
+                )
+            else:
+                subject = f"🌿 FARM HEALTH REPORT: 100% Healthy Field ({healthy_count}/{total_scanned} Leaves Clean)"
+                body_msg = (
+                    f"Hello {getattr(target_user, 'name', 'Farmer')},\n\n"
+                    f"Great news! Our Multi-Leaf Batch AI Scanner evaluated {total_scanned} sample points across your farm and found no critical infections.\n\n"
+                    f"RESULT SUMMARY:\n"
+                    f"• Farm Health Index: {healthy_pct}% Healthy\n"
+                    f"• All {total_scanned} sampled leaves are in clean, healthy condition.\n\n"
+                    f"Our AI system will continue tracking your field. Check your Dashboard for detailed analysis.\n\n"
+                    f"Best regards,\nKisan AI Team"
+                )
+
+            email_msg = Message(subject=subject, recipients=[dest_email], body=body_msg)
+            mail.send(email_msg)
+            print(f"Batch scan email sent successfully to {dest_email}!")
+            email_sent = True
+    except Exception as mail_err:
+        print(f"Batch email notification error: {mail_err}")
+
+    return jsonify({
+        'scanner_mode': 'BATCH_SCANNER',
+        'total_scanned_items': total_scanned,
+        'batch_results': [
+            {
+                'item_index': idx + 1,
+                'status': r.get('status', 'PASSED'),
+                'crop_identified': r.get('crop_name'),
+                'diagnostic_report': r.get('details', {})
+            }
+            for idx, r in enumerate(individual_results)
+        ],
+        'total_scanned': total_scanned,
+        'healthy_count': healthy_count,
+        'diseased_count': diseased_count,
+        'healthy_pct': healthy_pct,
+        'diseased_pct': diseased_pct,
+        'healthy_percentage': healthy_pct,
+        'diseased_percentage': diseased_pct,
+        'overall_status': overall_status,
+        'risk_level': risk_level,
+        'summary_msg': summary_msg,
+        'summary_message': summary_msg,
+        'disease_breakdown': disease_counts,
+        'individual_results': individual_results,
+        'results': individual_results,
+        'email_sent': email_sent
+    }), 200
 
 
 @detect_bp.route('/api/detect/history', methods=['GET'])

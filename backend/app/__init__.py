@@ -50,12 +50,9 @@ def create_app():
     # Important for SQLite concurrency on Windows
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "connect_args": {
-            "timeout": 60,
+            "timeout": 15,
             "check_same_thread": False
-        },
-        "pool_size": 1,
-        "max_overflow": 0,
-        "pool_pre_ping": True,
+        }
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -72,15 +69,7 @@ def create_app():
     jwt.init_app(app)
     mail.init_app(app)
 
-    # Enable WAL mode for SQLite to handle concurrency better
-    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-        with app.app_context():
-            @event.listens_for(db.engine, "connect")
-            def set_sqlite_pragma(dbapi_connection, connection_record):
-                cursor = dbapi_connection.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA synchronous=NORMAL")
-                cursor.close()
+
 
     # CORS
     CORS(

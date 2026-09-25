@@ -277,9 +277,9 @@ export default function AgronomistDashboard({ user, onLogout, theme, toggleTheme
               onChange={(e) => changeLang(e.target.value)} 
               style={{ background: 'transparent', color: txtMain, border: ' none', fontWeight: 900, cursor: 'pointer', outline:'none', fontSize: '0.85rem' }}
             >
-              <option value="en" style={{ background: isDark ? '#020617' : '#fff', color: txtMain }}>EN</option>
-              <option value="hi" style={{ background: isDark ? '#020617' : '#fff', color: txtMain }}>HI</option>
-              <option value="gu" style={{ background: isDark ? '#020617' : '#fff', color: txtMain }}>GU</option>
+              <option value="en" style={{ color: '#000' }}>EN</option>
+              <option value="hi" style={{ color: '#000' }}>HI</option>
+              <option value="gu" style={{ color: '#000' }}>GU</option>
             </select>
           )}
 
@@ -362,9 +362,9 @@ export default function AgronomistDashboard({ user, onLogout, theme, toggleTheme
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', padding: '15px 25px', borderRadius: 20, border: `1px solid ${borderCol}` }}>
                   <span style={{ fontWeight: 900, color: txtSec }}>Language</span>
                   <select value={lang} onChange={(e) => changeLang(e.target.value)} style={{ background: 'transparent', color: txtMain, border: 'none', fontWeight: 900, fontSize: '1rem', cursor: 'pointer' }}>
-                    <option value="en" style={{ background: isDark ? '#020617' : '#fff' }}>English</option>
-                    <option value="hi" style={{ background: isDark ? '#020617' : '#fff' }}>Hindi</option>
-                    <option value="gu" style={{ background: isDark ? '#020617' : '#fff' }}>Gujarati</option>
+                    <option value="en" style={{ color: '#000' }}>English</option>
+                    <option value="hi" style={{ color: '#000' }}>Hindi</option>
+                    <option value="gu" style={{ color: '#000' }}>Gujarati</option>
                   </select>
                 </div>
                 <button onClick={onLogout} style={{ width: '100%', padding: '18px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 20, fontWeight: 900, cursor: 'pointer' }}>Logout Executive Session</button>

@@ -22,13 +22,16 @@ def register():
     if not phone or not email:
         return jsonify({'error': 'Phone and Email are required'}), 400
 
-    if User.query.filter_by(phone=phone).first():
-        return jsonify({'error': 'Phone already registered'}), 409
-        
-    if User.query.filter_by(email=email).first():
-        return jsonify({'error': 'Email already registered'}), 409
-        
+
     try:
+        if User.query.filter_by(phone=phone).first():
+            db.session.rollback()
+            return jsonify({'error': 'Phone already registered'}), 409
+            
+        if User.query.filter_by(email=email).first():
+            db.session.rollback()
+            return jsonify({'error': 'Email already registered'}), 409
+            
         user = User(
             name     = data.get('name'),
             phone    = phone,
@@ -58,7 +61,9 @@ def login():
     data = request.get_json()
     user = User.query.filter_by(phone=data.get('phone')).first()
     if not user or not user.check_password(data.get('password')):
+        db.session.rollback()
         return jsonify({'error': 'Invalid phone or password'}), 401
+    db.session.rollback()
     token = create_access_token(identity=str(user.id))
     return jsonify({
         'message': 'Login successful!',

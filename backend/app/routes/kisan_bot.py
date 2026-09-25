@@ -58,14 +58,16 @@ KNOWLEDGE_BASE = {
         "harvest": "Harvest when 50% of the tops fall over. Cure in shade for 10-15 days for better shelf life.",
         "default": "Onions are shallow rooted and need consistent moisture."
     },
-    "seed": { "default": "Always buy certified seeds. Treat seeds with Trichoderma before sowing." },
-    "irrigation": { "default": "Drip irrigation can save up to 70% water." },
-    "pest": { "default": "Identify the pest first. For sucking pests, use Neem oil." },
-    "water": { "default": "Irrigate during early morning or late evening." },
-    "soil": { "default": "Get your soil tested every 2 years from a KVK." },
-    "organic": { "default": "Use Jeevamrut and Neem oil for organic farming." },
-    "market": { "default": "Check e-NAM or your local Mandi portal for latest rates." },
-    "weather": { "default": "Weather updates can be monitored closely via your app dashboard." }
+    "disease": { "default": "To identify plant diseases, look for spots, discoloration, wilting, or holes on leaves. Use our AI Crop Scanner to take a photo of the leaf for an instant, accurate diagnosis!" },
+    "identify": { "default": "You can easily identify crop issues by taking a clear photo of the affected leaf and uploading it to our Precision Crop Scanner on the dashboard." },
+    "seed": { "default": "Always buy certified seeds from trusted sources. Treat seeds with Trichoderma before sowing to prevent root diseases." },
+    "irrigation": { "default": "Drip irrigation is the most efficient way to water crops, saving up to 70% of water compared to flood irrigation." },
+    "pest": { "default": "If you see insects or eaten leaves, apply Neem oil spray (5ml per liter of water) as a natural first defense." },
+    "water": { "default": "Water your crops during the early morning or late evening to prevent evaporation and leaf burn." },
+    "soil": { "default": "Healthy soil is the foundation of farming. Get your soil tested every 2 years and add organic compost regularly." },
+    "organic": { "default": "Organic farming uses natural inputs like Jeevamrut, cow dung compost, and Neem oil instead of chemical pesticides." },
+    "market": { "default": "You can check live market prices directly from the Market Trends section on your dashboard." },
+    "weather": { "default": "Live weather updates and rain forecasts are available on your dashboard to help you plan your farming activities." }
 }
 
 def translate_text(text, source='auto', target='en'):
@@ -106,24 +108,9 @@ def advanced_offline_processor(msg_native, lang):
     if found_answer:
         return translate_text(found_answer, target=lang)
 
-    # 3. Wikipedia Fallback for "All Types of Questions"
-    try:
-        # Extract main nouns/keywords roughly
-        keywords = ' '.join([w for w in msg_en.split() if w not in ['what', 'is', 'the', 'how', 'to', 'grow', 'a', 'an', 'in', 'of', 'for']])
-        if not keywords: keywords = msg_en
-        
-        # Search wiki for agricultural context
-        search_results = wikipedia.search(keywords + " agriculture crop")
-        if search_results:
-            summary = wikipedia.summary(search_results[0], sentences=2)
-            ans_en = f"According to Wikipedia: {summary}"
-            return translate_text(ans_en, target=lang)
-    except Exception as e:
-        print("Wiki Error:", str(e))
-        pass
-
-    # 4. Ultimate Fallback
-    ans_en = "That is a great agricultural question. Please ensure your soil pH is balanced, and use our Crop Scanner for detailed diagnostics."
+    # 3. Ultimate Fallback (Easy and Real)
+    # If the user asks something completely unknown, give a helpful, easy response instead of confusing academic text.
+    ans_en = "I am currently running in offline mode. For a precise and real diagnosis of your crop, please click the 'Scanner' tab and upload a photo of the plant. I will give you a real, step-by-step treatment plan!"
     return translate_text(ans_en, target=lang)
 
 
