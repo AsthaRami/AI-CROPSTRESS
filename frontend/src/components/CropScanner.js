@@ -3,6 +3,236 @@ import html2canvas from 'html2canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { translations } from '../translations';
 
+// Translation Dictionary for Crop Diseases & Diagnostic Reports across English, Hindi, and Gujarati
+export const getTranslatedReportData = (report, diseaseObj, lang = 'en') => {
+  if (!report && !diseaseObj) return {};
+
+  const currentLang = ['gu', 'hi', 'en'].includes(lang) ? lang : 'en';
+  const diseaseType = diseaseObj?.type || report?.pathogen_cause?.common_name || 'Crop___Healthy';
+  const rawTypeLower = diseaseType.toLowerCase();
+  const isHealthy = rawTypeLower.includes('healthy');
+  const isOOD = diseaseObj?.is_ood || report?.is_ood || report?.ood_detection?.is_ood || ((diseaseObj?.confidence || 0) < 50 && !isHealthy);
+
+  const statusTranslations = {
+    gu: {
+      healthy: 'તંદુરસ્ત પાક (ઉત્તમ સ્થિતિ)',
+      critical: 'ગંભીર ચેપ રોગ (તત્કાલ પગલાં જરૂરી)',
+      ood: 'અજાણ્યો રોગ / અણધારી સ્થિતિ (OOD તણાવ)'
+    },
+    hi: {
+      healthy: 'स्वस्थ फसल (उत्कृष्ट स्थिति)',
+      critical: 'गंभीर संक्रमण (तत्काल कार्रवाई आवश्यक)',
+      ood: 'अज्ञात बीमारी / ओओडी तनाव'
+    },
+    en: {
+      healthy: 'HEALTHY CROP (OPTIMAL)',
+      critical: 'CRITICAL INFECTION OUTBREAK',
+      ood: 'UNKNOWN / OUT-OF-DISTRIBUTION STRESS'
+    }
+  };
+
+  const diseaseNameTranslations = {
+    gu: {
+      'Apple Scab': 'સફરજનમાં પોપડીનો રોગ (Apple Scab)',
+      'Apple Black Rot': 'સફરજનનો કાળો સડો (Black Rot)',
+      'Cedar Apple Rust': 'સફરજનનો ગેરુ રોગ (Cedar Rust)',
+      'Grape Black Rot': 'દ્રાક્ષનો કાળો સડો (Black Rot)',
+      'Potato Early Blight': 'બટાકાનો વહેલો સુકારો (Early Blight)',
+      'Potato Late Blight': 'બટાકાનો પાછલો સુકારો (Late Blight)',
+      'Tomato Early Blight': 'ટામેટાનો વહેલો સુકારો (Early Blight)',
+      'Tomato Late Blight': 'ટામેટાનો પાછલો સુકારો (Late Blight)',
+      'Tomato Yellow Leaf Curl Virus': 'ટામેટાનો પણ વણાટ વાયરસ (Yellow Leaf Curl)',
+      'Tomato Mosaic Virus': 'ટામેટાનો મોઝેઇક વાયરસ',
+      'Corn Common Rust': 'મકાઈનો ગેરુ રોગ (Common Rust)',
+      'Corn Northern Leaf Blight': 'મકાઈનો ઉત્તરીય પણ સુકારો',
+      'Healthy': 'તંદુરસ્ત પાક (કોઈ રોગ નથી)',
+      'Unknown / Unclassified Disease': 'અજાણ્યો / અણધારી રોગ (OOD)'
+    },
+    hi: {
+      'Apple Scab': 'सेब में पपड़ी रोग (Apple Scab)',
+      'Apple Black Rot': 'सेब का काला सड़न रोग',
+      'Cedar Apple Rust': 'सेब का गेरू रोग',
+      'Grape Black Rot': 'अंगूर का काला सड़न',
+      'Potato Early Blight': 'आलू का अगेती झुलसा रोग',
+      'Potato Late Blight': 'आलू का पछेती झुलसा रोग',
+      'Tomato Early Blight': 'टमाटर का अगेती झुलसा रोग',
+      'Tomato Late Blight': 'टमाटर का पछेती झुलसा रोग',
+      'Tomato Yellow Leaf Curl Virus': 'टमाटर का पर्ण कुंचन वायरस',
+      'Tomato Mosaic Virus': 'टमाटर का मोज़ेक वायरस',
+      'Corn Common Rust': 'मक्का का गेरू रोग',
+      'Corn Northern Leaf Blight': 'मक्का का उत्तरी पर्ण झुलसा',
+      'Healthy': 'स्वस्थ फसल (कोई रोग नहीं)',
+      'Unknown / Unclassified Disease': 'अज्ञात / अवर्गीकृत बीमारी'
+    }
+  };
+
+  const organicRemediesTranslations = {
+    gu: {
+      healthy: ['નિયમિત દેશી ખાતર (છાણીયું ખાતર) અને વર્મીકોમ્પોસ્ટનો ઉપયોગ ચાલુ રાખો.', 'જમીનમાં પૂરતો ભેજ અને સમયાંતરે પાકનું નિરીક્ષણ જાળવો.'],
+      critical: [
+        'લીમડાનું તેલ (Neem Oil 5ml/લીટર) અને 5% ખાટી છાશનું મિશ્રણ બનાવી છંટકાવ કરો.',
+        'ટ્રાઇકોડર્મા વિરીડી (Trichoderma viride @ 5g/L) નો જૈવિક રોગનિયંત્રક તરીકે ઉપયોગ કરો.',
+        'રોગગ્રસ્ત પાંદડાં તોડીને પ્લાસ્ટિકની થેલીમાં બંધ કરી ખેતરથી દૂર નાશ કરો.'
+      ],
+      ood: [
+        'લીમડાનું તેલ (5ml/L) + 5% ખાટી છાશનો રક્ષણાત્મક જૈવિક છંટકાવ કરો.',
+        'વધુ અસરગ્રસ્ત પાંદડાં કાપીને અલગ કરો અને નિષ્ણાતની સલાહ લીધા વિના રાસાયણિક છંટકાવ કરશો નહીં.'
+      ]
+    },
+    hi: {
+      healthy: ['नियमित जैविक खाद (गोबर खाद) और वर्मीकम्पोस्ट का प्रयोग जारी रखें।', 'मिट्टी में उचित नमी और समय-समय पर फसल की निगरानी बनाए रखें।'],
+      critical: [
+        'नीम का तेल (Neem Oil 5ml/लीटर) और 5% खट्टी छाछ का घोल बनाकर छिड़काव करें।',
+        'ट्राइकोडरमा विरिडी (Trichoderma viride @ 5g/L) का जैविक नियंत्रण के रूप में उपयोग करें।',
+        'संक्रमित पत्तियों को तोड़कर प्लास्टिक बैग में बंद कर खेत से दूर नष्ट करें।'
+      ],
+      ood: [
+        'नीम का तेल (5ml/L) + 5% खट्टी छाछ का सुरक्षात्मक जैविक छिड़काव करें।',
+        'अत्यधिक प्रभावित पत्तियों को अलग करें और विशेषज्ञ की पुष्टि के बिना रासायनिक दवा न छिड़कें।'
+      ]
+    }
+  };
+
+  const chemicalControlTranslations = {
+    gu: {
+      healthy: { active_ingredient: 'કોઈ રાસાયણિક જરૂર નથી', dosage: 'રાસાયણિક છંટકાવ કરશો નહીં' },
+      critical: {
+        active_ingredient: report?.chemical_control?.active_ingredient || 'મેન્કોઝેબ / ક્લોરોથેલોનિલ (Mancozeb / Chlorothalonil)',
+        dosage: report?.chemical_control?.dosage || '2.5 ગ્રામ/લીટર પાણીમાં ભેળવીને સવારે છંટકાવ કરવો'
+      },
+      ood: { active_ingredient: 'અજમાયશી દવાઓ બંધ રાખો', dosage: 'કૃષિ નિષ્ણાતની ચકાસણી સુધી રાસાયણિક દવા ન છાંટવી' }
+    },
+    hi: {
+      healthy: { active_ingredient: 'कोई रासायनिक आवश्यकता नहीं', dosage: 'रासायनिक छिड़काव न करें' },
+      critical: {
+        active_ingredient: report?.chemical_control?.active_ingredient || 'मैन्कोज़ेब / क्लोरोथेलोनिल (Mancozeb / Chlorothalonil)',
+        dosage: report?.chemical_control?.dosage || '2.5 ग्राम/लीटर पानी में मिलाकर सुबह छिड़काव करें'
+      },
+      ood: { active_ingredient: 'अस्थायी रूप से रसायन बंद रखें', dosage: 'कृषि विशेषज्ञ की पुष्टि तक रासायनिक दवा न छिड़कें' }
+    }
+  };
+
+  const symptomsTranslations = {
+    gu: {
+      healthy: 'છોડના પાંદડા લીલા, સ્વચ્છ અને સંપૂર્ણપણે તંદુરસ્ત છે.',
+      critical: report?.visual_symptoms || 'પાંદડા પર ભૂરા/કાળા ટપકાં, કિનારીઓ સુકાઈ જવી અને ફંગલ ડાઘ જોવા મળે છે.',
+      ood: 'અસામાન્ય ડાઘ અને અનિયમિત સુકારો જે પ્રમાણભૂત ડેટાબેઝ સાથે મેળ ખાતા નથી.'
+    },
+    hi: {
+      healthy: 'पौधे की पत्तियां हरी, साफ और पूरी तरह से स्वस्थ हैं।',
+      critical: report?.visual_symptoms || 'पत्तियों पर भूरे/काले धब्बे, किनारों का सूखना और फंगल दाग दिखाई देते हैं।',
+      ood: 'असामान्य धब्बे और अनियमित सूखापन जो मानक डेटाबेस से मेल नहीं खाते हैं।'
+    }
+  };
+
+  const cropNameTranslations = {
+    gu: {
+      'Tomato': 'ટામેટા (Tomato)',
+      'Potato': 'બટાકા (Potato)',
+      'Corn (Maize)': 'મકાઈ (Corn)',
+      'Corn': 'મકાઈ (Corn)',
+      'Apple': 'સફરજન (Apple)',
+      'Grape': 'દ્રાક્ષ (Grape)',
+      'Peach': 'પીચ (Peach)',
+      'Pepper (Bell)': 'કેપ્સિકમ / મરચાં (Pepper)',
+      'Pepper': 'મરચાં (Pepper)',
+      'Cherry': 'ચેરી (Cherry)',
+      'Strawberry': 'સ્ટ્રોબેરી (Strawberry)',
+      'Orange (Citrus)': 'સંતરા (Orange)',
+      'Orange': 'સંતરા (Orange)',
+      'Blueberry': 'બ્લુબેરી (Blueberry)',
+      'Raspberry': 'રાસ્પબેરી (Raspberry)',
+      'Soybean': 'સોયાબીન (Soybean)',
+      'Squash': 'કોળું (Squash)',
+      'Wheat': 'ઘઉં (Wheat)',
+      'Rice': 'ચોખા (Rice)',
+      'Cotton': 'કપાસ (Cotton)'
+    },
+    hi: {
+      'Tomato': 'टमाटर (Tomato)',
+      'Potato': 'आलू (Potato)',
+      'Corn (Maize)': 'मक्का (Corn)',
+      'Corn': 'मक्का (Corn)',
+      'Apple': 'सेब (Apple)',
+      'Grape': 'अंगूर (Grape)',
+      'Peach': 'आड़ू (Peach)',
+      'Pepper (Bell)': 'शिमला मिर्च (Pepper)',
+      'Pepper': 'मिर्च (Pepper)',
+      'Cherry': 'चेरी (Cherry)',
+      'Strawberry': 'स्ट्रॉबेरी (Strawberry)',
+      'Orange (Citrus)': 'संतरा (Orange)',
+      'Orange': 'संतरा (Orange)',
+      'Blueberry': 'ब्लूबेरी (Blueberry)',
+      'Raspberry': 'रसभरी (Raspberry)',
+      'Soybean': 'सोयाबीन (Soybean)',
+      'Squash': 'कद्दू (Squash)',
+      'Wheat': 'गेहूं (Wheat)',
+      'Rice': 'चावल (Rice)',
+      'Cotton': 'कपास (Cotton)'
+    }
+  };
+
+  let displayStatus = report?.health_status || 'HEALTHY';
+  let displayDisease = report?.pathogen_cause?.common_name || diseaseObj?.type || 'Healthy';
+
+  let rawCropName = diseaseObj?.crop_name || diseaseObj?.crop_identified || report?.crop_name || 'Crop';
+  const dLower = (diseaseObj?.type || '').toLowerCase();
+
+  if (rawCropName === 'Crop' || rawCropName === 'UNKNOWN CROP' || rawCropName === 'Non-Crop Asset') {
+    if (dLower.includes('cherry')) rawCropName = 'Cherry';
+    else if (dLower.includes('corn') || dLower.includes('maize')) rawCropName = 'Corn (Maize)';
+    else if (dLower.includes('peach')) rawCropName = 'Peach';
+    else if (dLower.includes('grape')) rawCropName = 'Grape';
+    else if (dLower.includes('strawberry')) rawCropName = 'Strawberry';
+    else if (dLower.includes('potato')) rawCropName = 'Potato';
+    else if (dLower.includes('pepper')) rawCropName = 'Pepper (Bell)';
+    else if (dLower.includes('tomato')) rawCropName = 'Tomato';
+    else if (dLower.includes('apple')) rawCropName = 'Apple';
+    else if (dLower.includes('orange') || dLower.includes('citrus') || dLower.includes('haunglongbing')) rawCropName = 'Orange (Citrus)';
+    else if (dLower.includes('blueberry')) rawCropName = 'Blueberry';
+    else if (dLower.includes('raspberry')) rawCropName = 'Raspberry';
+    else if (dLower.includes('soybean')) rawCropName = 'Soybean';
+    else if (dLower.includes('squash')) rawCropName = 'Squash';
+  }
+
+  let displayCropName = rawCropName;
+  if (currentLang !== 'en' && cropNameTranslations[currentLang] && cropNameTranslations[currentLang][rawCropName]) {
+    displayCropName = cropNameTranslations[currentLang][rawCropName];
+  }
+
+  if (currentLang !== 'en') {
+    const langDict = statusTranslations[currentLang];
+    if (isOOD) displayStatus = langDict.ood;
+    else if (isHealthy) displayStatus = langDict.healthy;
+    else displayStatus = langDict.critical;
+
+    if (diseaseNameTranslations[currentLang] && diseaseNameTranslations[currentLang][displayDisease]) {
+      displayDisease = diseaseNameTranslations[currentLang][displayDisease];
+    }
+  }
+
+  const organicRemediesList = currentLang !== 'en' && organicRemediesTranslations[currentLang]
+    ? (isOOD ? organicRemediesTranslations[currentLang].ood : (isHealthy ? organicRemediesTranslations[currentLang].healthy : organicRemediesTranslations[currentLang].critical))
+    : (report?.organic_remedies || []);
+
+  const chemicalControlData = currentLang !== 'en' && chemicalControlTranslations[currentLang]
+    ? (isOOD ? chemicalControlTranslations[currentLang].ood : (isHealthy ? chemicalControlTranslations[currentLang].healthy : chemicalControlTranslations[currentLang].critical))
+    : (report?.chemical_control || { active_ingredient: 'N/A', dosage: 'N/A' });
+
+  const symptomsText = currentLang !== 'en' && symptomsTranslations[currentLang]
+    ? (isOOD ? symptomsTranslations[currentLang].ood : (isHealthy ? symptomsTranslations[currentLang].healthy : symptomsTranslations[currentLang].critical))
+    : (report?.visual_symptoms || 'N/A');
+
+  return {
+    displayStatus,
+    displayDisease,
+    displayCropName,
+    organicRemediesList,
+    chemicalControlData,
+    symptomsText
+  };
+};
+
 export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
   const t = translations[lang] || translations.en;
   const isDark = theme === 'black';
@@ -37,6 +267,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
   const [selectedLeafModal, setSelectedLeafModal] = useState(null);
   const [showGradcamModal, setShowGradcamModal] = useState(false);
   const [batchOverlayMode, setBatchOverlayMode] = useState('original'); // 'original' | 'gradcam' | 'overlay'
+  const [expertSent, setExpertSent] = useState(false);
 
   const handleBatchImageChange = (e) => {
     const selected = Array.from(e.target.files || []);
@@ -87,7 +318,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       batchFiles.forEach(file => {
-        formData.append('images', file);
+        formData.append('images', file, file.name || 'leaf_scan.jpg');
       });
 
       const headers = {};
@@ -155,7 +386,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
     try {
       const token = localStorage.getItem('token');
       const formData = new FormData();
-      formData.append('image', image);
+      formData.append('image', image, image.name || 'leaf_scan.jpg');
       const headers = {};
       if (token) headers['Authorization'] = 'Bearer ' + token;
 
@@ -311,7 +542,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
             boxShadow: scanMode === 'single' ? '0 4px 12px rgba(22, 163, 74, 0.3)' : 'none'
           }}
         >
-          🍃 Single Leaf Scanner
+          {t.singleScanTab || '🍃 Single Leaf Scanner'}
         </button>
         <button
           onClick={() => setScanMode('batch')}
@@ -323,7 +554,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
             boxShadow: scanMode === 'batch' ? '0 4px 12px rgba(14, 165, 233, 0.3)' : 'none'
           }}
         >
-          📸 Multi-Leaf Batch Scanner
+          {t.batchScanTab || '📸 Multi-Leaf Batch Scanner'}
         </button>
       </div>
 
@@ -614,7 +845,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                         </div>
 
                         <h4 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: isDark ? '#f8fafc' : '#0f172a' }}>
-                          {item.disease_type}
+                          🌾 {item.crop_name || 'Crop'}: <span style={{ color: '#0ea5e9' }}>{item.disease_type}</span>
                         </h4>
                         <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b' }}>
                           AI Match Confidence: <strong style={{ color: '#0ea5e9' }}>{item.confidence}%</strong>
@@ -762,6 +993,12 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '0.95rem' }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid #334155' }}>
+                      <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Detected Crop:</td>
+                      <td style={{ padding: '8px 0', color: '#16a34a', fontWeight: 'bold' }}>
+                        {selectedLeafModal.crop_name || 'Crop'}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #334155' }}>
                       <td style={{ padding: '8px 0', fontWeight: 'bold' }}>Condition:</td>
                       <td style={{ padding: '8px 0', color: selectedLeafModal.is_healthy ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
                         {selectedLeafModal.disease_type}
@@ -821,6 +1058,42 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                       : <li>Avoid overhead watering and ensure proper plant spacing for airflow.</li>}
                   </ul>
                 </div>
+
+                {/* 🚨 3. OOD Detection (Smart AI Control) Human-in-the-Loop Block */}
+                {(selectedLeafModal.is_ood || selectedLeafModal.confidence < 60 || (selectedLeafModal.disease_type || '').toLowerCase().includes('unknown')) && (
+                  <div style={{
+                    background: isDark ? '#2e1065' : '#fffbe6',
+                    border: '2px solid #f59e0b', borderRadius: '14px', padding: '18px',
+                    marginBottom: '16px', color: isDark ? '#fef08a' : '#78350f'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        🚨 3. OOD Detection (Smart AI Control)
+                      </div>
+                      <span style={{ background: '#f59e0b', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                        CONFIDENCE: {selectedLeafModal.confidence}% (&lt; 60.0%)
+                      </span>
+                    </div>
+
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                      <strong>Galat answer dene se better hai "pata nahi" bolna:</strong> AI match confidence is below 60.0%. Rather than giving an inaccurate disease diagnosis, this specimen is flagged as <strong>Unknown Disease (OOD Stress)</strong> and sent for Expert Agronomist review.
+                    </p>
+
+                    <button
+                      onClick={() => setExpertSent(true)}
+                      disabled={expertSent}
+                      style={{
+                        width: '100%', padding: '10px 14px',
+                        background: expertSent ? '#16a34a' : '#d97706',
+                        color: 'white', border: 'none', borderRadius: '8px',
+                        fontWeight: 'bold', fontSize: '0.85rem', cursor: expertSent ? 'default' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                      }}
+                    >
+                      {expertSent ? '✅ Specimen Sent to KVK Agronomist Expert!' : '👨‍🌾 Send Specimen to Local Agri Expert / KVK'}
+                    </button>
+                  </div>
+                )}
 
                 {/* Pest Trace AI Solution Protocol */}
                 {selectedLeafModal.pest_solution && (
@@ -1154,7 +1427,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                 letterSpacing: '1px'
               }}
             >
-              🚀 START ADVANCED AI ANALYSIS
+              {t.startAnalysis || '🚀 START ADVANCED AI ANALYSIS'}
             </button>
           ) : (
             <motion.button
@@ -1175,7 +1448,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                 letterSpacing: '1px'
               }}
             >
-              🔄 SCAN ANOTHER LEAF / RESET UI
+              {t.scanAnother || '🔄 SCAN ANOTHER LEAF / RESET UI'}
             </motion.button>
           )}
           <style>{`
@@ -1201,358 +1474,429 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
 
 
           {/* COMPLETE ANALYSIS RESULT (FUTURISTIC UI) */}
-          {result && !result.error && (
-            <div style={{ marginTop: '40px', fontFamily: '"Lexend Deca", sans-serif' }}>
+          {result && !result.error && (() => {
+            const reportData = getTranslatedReportData(result?.diagnostic_report, result?.disease, lang);
+            return (
+              <div style={{ marginTop: '40px', fontFamily: '"Lexend Deca", sans-serif' }}>
 
-              {/* Main Modern Report Container */}
-              <div id="report-container" style={{
-                background: '#ffffff',
-                borderRadius: '24px',
-                border: `2px solid ${sevColor(result.severity)}`,
-                boxShadow: `0 20px 50px rgba(0,0,0,0.1)`,
-                overflow: 'hidden',
-                position: 'relative'
-              }}>
-
-                {/* Header */}
-                <div style={{
-                  background: sevColor(result.severity),
-                  padding: isSmallMobile ? '20px' : '24px 30px',
-                  display: 'flex',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  justifyContent: isMobile ? 'flex-start' : 'space-between',
-                  alignItems: isMobile ? 'flex-start' : 'center',
-                  gap: 20,
-                  color: '#fff'
+                {/* Main Modern Report Container */}
+                <div id="report-container" style={{
+                  background: '#ffffff',
+                  borderRadius: '24px',
+                  border: `2px solid ${sevColor(result.severity)}`,
+                  boxShadow: `0 20px 50px rgba(0,0,0,0.1)`,
+                  overflow: 'hidden',
+                  position: 'relative'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '14px', fontSize: '1.8rem' }}>
-                      📋
-                    </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: isSmallMobile ? '1rem' : '1.5rem', fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase' }}>Smart Farm Diagnostic Report</h3>
-                      <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: '4px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <span><strong>Scan ID:</strong> {Math.random().toString(36).substring(2, 10).toUpperCase()}</span>
-                        <span>•</span>
-                        <span><strong>Time:</strong> {new Date().toLocaleTimeString()}</span>
+
+                  {/* Header */}
+                  <div style={{
+                    background: sevColor(result.severity),
+                    padding: isSmallMobile ? '20px' : '24px 30px',
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    justifyContent: isMobile ? 'flex-start' : 'space-between',
+                    alignItems: isMobile ? 'flex-start' : 'center',
+                    gap: 20,
+                    color: '#fff'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+                      <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '14px', fontSize: '1.8rem' }}>
+                        📋
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: isSmallMobile ? '1rem' : '1.5rem', fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase' }}>Smart Farm Diagnostic Report</h3>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.9, marginTop: '4px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                          <span><strong>Scan ID:</strong> {Math.random().toString(36).substring(2, 10).toUpperCase()}</span>
+                          <span>•</span>
+                          <span><strong>Time:</strong> {new Date().toLocaleTimeString()}</span>
+                        </div>
                       </div>
                     </div>
+                    <div style={{
+                      background: 'rgba(255,255,255,0.15)',
+                      padding: '10px 24px',
+                      borderRadius: '30px',
+                      fontWeight: 800,
+                      letterSpacing: '1px',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}>
+                      <div style={{ width: '10px', height: '10px', background: '#fff', borderRadius: '50%', animation: 'ping 2s infinite' }}></div>
+                      {(result.severity || 'UNKNOWN').toUpperCase()} RISK LEVEL
+                    </div>
                   </div>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.15)',
-                    padding: '10px 24px',
-                    borderRadius: '30px',
-                    fontWeight: 800,
-                    letterSpacing: '1px',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    backdropFilter: 'blur(10px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}>
-                    <div style={{ width: '10px', height: '10px', background: '#fff', borderRadius: '50%', animation: 'ping 2s infinite' }}></div>
-                    {(result.severity || 'UNKNOWN').toUpperCase()} RISK LEVEL
-                  </div>
-                </div>
 
-                <div style={{ padding: isSmallMobile ? '20px' : '30px' }}>
+                  <div style={{ padding: isSmallMobile ? '20px' : '30px' }}>
 
-                  {/* Section 1: Explainable AI Transparency & Lesion Spotlight (Displayed only for diseased/critical/high/medium risk leaves) */}
-                  {!(
-                    (result?.disease?.type || '').toLowerCase().includes('healthy') ||
-                    result?.severity === 'low' ||
-                    result?.severity === 'safe'
-                  ) && (
-                      <>
-                        {/* Explainable AI Transparency Callout Banner */}
-                        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderLeft: '5px solid #0ea5e9', padding: '16px 20px', borderRadius: '16px', marginBottom: '24px', color: '#f8fafc' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                            <h4 style={{ margin: 0, color: '#38bdf8', fontSize: isSmallMobile ? '0.95rem' : '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              🧠 Explainable AI (Grad-CAM & Red/Yellow Disease Highlights)
-                            </h4>
-                            <span style={{ background: '#0369a1', color: '#e0f2fe', padding: '4px 12px', borderRadius: '20px', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.5px' }}>
-                              RESEARCH-GRADE TRANSPARENT AI
-                            </span>
-                          </div>
-                          <p style={{ margin: '8px 0 0 0', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                            <strong>How it works:</strong> Red & yellow highlights project the exact leaf regions and lesion spots analyzed by the deep-learning model. This makes the AI decision completely transparent and easy to understand.
-                          </p>
-                        </div>
-
-                        {/* 3-Stage Explainable AI Visual Verification */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '30px' }}>
-                          {/* 1. Original Photo */}
-                          <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              🔍 1. Original Upload
-                            </h4>
-                            <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', borderRadius: '12px', overflow: 'hidden' }}>
-                              <img src={preview} alt="Original Leaf" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                            </div>
-                          </div>
-
-                          {/* 2. Grad-CAM Neural Heatmap */}
-                          <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              🔥 2. Grad-CAM Heatmap
-                            </h4>
-                            <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', borderRadius: '12px', overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {result.gradcam_url ? (
-                                <img src={`${API_BASE}${result.gradcam_url}`} alt="Grad-CAM Heatmap" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                              ) : (
-                                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Heatmap generating...</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* 3. Red/Yellow Infection Spotlight */}
-                          <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                            <h4 style={{ margin: '0 0 10px 0', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              🎯 3. Red/Yellow Infection Spotlight
-                            </h4>
-                            <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', borderRadius: '12px', overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {result.infection_overlay_url ? (
-                                <img src={`${API_BASE}${result.infection_overlay_url}`} alt="Infection Spotlight Overlay" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                              ) : result.gradcam_url ? (
-                                <img src={`${API_BASE}${result.gradcam_url}`} alt="Infection Overlay" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                              ) : (
-                                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Spotlight generating...</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                  {/* Section 2: Core Analysis Overview */}
-                  <h4 style={{ margin: '0 0 15px 0', color: '#1e293b', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    📊 Core Analysis Overview
-                  </h4>
-                  <div style={{ background: isDark ? '#1e293b' : '#f8fafc', overflowX: 'auto', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: isSmallMobile ? '0.75rem' : '0.9rem', textAlign: 'left' }}>
-                      <thead style={{ background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#cbd5e1' : '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        <tr>
-                          <th style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 800 }}>Metric</th>
-                          <th style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 800 }}>Detection Result</th>
-                        </tr>
-                      </thead>
-                      <tbody style={{ color: isDark ? '#e2e8f0' : '#334155' }}>
-                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 600 }}>Detected Crop</td>
-                          <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 900, color: sevColor(result.severity), fontSize: isSmallMobile ? '0.9rem' : '1.1rem' }}>
-                            {result.crop_name?.toUpperCase() || 'UNKNOWN CROP'}
-                          </td>
-                        </tr>
-                        <tr style={{ borderBottom: '1px solid #e2e8f0', background: sevColor(result.severity) + '05' }}>
-                          <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 600, fontSize: isSmallMobile ? '0.8rem' : '0.95rem' }}>Primary Condition</td>
-                          <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 800, color: sevColor(result.severity), fontSize: isSmallMobile ? '0.9rem' : '1.1rem' }}>
-                                {result.disease?.type?.replace(/___/g, ' - ').replace(/_/g, ' ') || 'Healthy'}
-                              </span>
-                              <span style={{ background: sevColor(result.severity), color: '#fff', padding: '4px 12px', borderRadius: '20px', fontWeight: 800, fontSize: isSmallMobile ? '0.7rem' : '0.85rem' }}>
-                                {result.severity === 'critical' ? 'CRITICAL RISK' : result.severity === 'high' ? 'HIGH RISK' : result.severity === 'medium' ? 'CAUTION' : 'SAFE'}
+                    {/* Section 1: Explainable AI Transparency & Lesion Spotlight (Displayed only for diseased/critical/high/medium risk leaves) */}
+                    {!(
+                      (result?.disease?.type || '').toLowerCase().includes('healthy') ||
+                      result?.severity === 'low' ||
+                      result?.severity === 'safe'
+                    ) && (
+                        <>
+                          {/* Explainable AI Transparency Callout Banner */}
+                          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderLeft: '5px solid #0ea5e9', padding: '16px 20px', borderRadius: '16px', marginBottom: '24px', color: '#f8fafc' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                              <h4 style={{ margin: 0, color: '#38bdf8', fontSize: isSmallMobile ? '0.95rem' : '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                🧠 Explainable AI (Grad-CAM & Red/Yellow Disease Highlights)
+                              </h4>
+                              <span style={{ background: '#0369a1', color: '#e0f2fe', padding: '4px 12px', borderRadius: '20px', fontWeight: 800, fontSize: '0.75rem', letterSpacing: '0.5px' }}>
+                                RESEARCH-GRADE TRANSPARENT AI
                               </span>
                             </div>
-                          </td>
-                        </tr>
+                            <p style={{ margin: '8px 0 0 0', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                              <strong>How it works:</strong> Red & yellow highlights project the exact leaf regions and lesion spots analyzed by the deep-learning model. This makes the AI decision completely transparent and easy to understand.
+                            </p>
+                          </div>
 
-                        {/* Botanical Intelligence Rows injected here */}
-                        {result.disease?.details && (
-                          <>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '16px 20px', fontWeight: 600 }}>Pathogen / Cause</td>
-                              <td style={{ padding: '16px 20px', color: '#475569' }}>
-                                {result.disease.details.cause}
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '16px 20px', fontWeight: 600 }}>Visual Symptoms</td>
-                              <td style={{ padding: '16px 20px', color: '#475569' }}>
-                                {result.disease.details.symptoms}
-                              </td>
-                            </tr>
-                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ padding: '16px 20px', fontWeight: 600 }}>Preventive Strategy</td>
-                              <td style={{ padding: '16px 20px', color: '#475569' }}>
-                                {result.disease.details.prevention}
-                              </td>
-                            </tr>
-                          </>
-                        )}
-
-                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                          <td style={{ padding: '16px 20px', fontWeight: 600 }}>AI Confidence</td>
-                          <td style={{ padding: '16px 20px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                              <span style={{ fontWeight: 800 }}>{result.disease?.confidence || 0}% Accuracy Match</span>
-                              <div style={{ width: '150px', height: '10px', background: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
-                                <div style={{ width: `${result.disease?.confidence || 0}%`, height: '100%', background: sevColor(result.severity) }}></div>
+                          {/* 3-Stage Explainable AI Visual Verification */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '30px' }}>
+                            {/* 1. Original Photo */}
+                            <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                              <h4 style={{ margin: '0 0 10px 0', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                🔍 1. Original Upload
+                              </h4>
+                              <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617', borderRadius: '12px', overflow: 'hidden' }}>
+                                <img src={preview} alt="Original Leaf" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                               </div>
                             </div>
-                          </td>
-                        </tr>
-                        {weather && !weather.error && (
+
+                            {/* 2. Grad-CAM Neural Heatmap */}
+                            <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                              <h4 style={{ margin: '0 0 10px 0', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                🔥 2. Grad-CAM Heatmap
+                              </h4>
+                              <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', borderRadius: '12px', overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {result.gradcam_url ? (
+                                  <img src={`${API_BASE}${result.gradcam_url}`} alt="Grad-CAM Heatmap" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                ) : (
+                                  <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Heatmap generating...</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* 3. Red/Yellow Infection Spotlight */}
+                            <div style={{ background: '#0f172a', padding: '12px', borderRadius: '16px', border: '1px solid #1e293b', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+                              <h4 style={{ margin: '0 0 10px 0', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                🎯 3. Red/Yellow Infection Spotlight
+                              </h4>
+                              <div style={{ position: 'relative', width: '100%', height: isSmallMobile ? '200px' : '250px', borderRadius: '12px', overflow: 'hidden', background: '#020617', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {result.infection_overlay_url ? (
+                                  <img src={`${API_BASE}${result.infection_overlay_url}`} alt="Infection Spotlight Overlay" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                ) : result.gradcam_url ? (
+                                  <img src={`${API_BASE}${result.gradcam_url}`} alt="Infection Overlay" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                ) : (
+                                  <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Spotlight generating...</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                    {/* 🚨 3. OOD Detection (Smart AI Control) Component */}
+                    {(
+                      result?.is_ood ||
+                      result?.disease?.is_ood ||
+                      result?.diagnostic_report?.is_ood ||
+                      ((result?.disease?.confidence || 0) < 60 && !(result?.disease?.type || '').toLowerCase().includes('healthy')) ||
+                      (result?.disease?.type || '').toLowerCase().includes('unknown') ||
+                      (result?.diagnostic_report?.health_status || '').toLowerCase().includes('unknown')
+                    ) && (
+                        <div style={{
+                          background: 'linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%)',
+                          border: '2px solid #f59e0b', borderRadius: '18px', padding: '24px',
+                          marginBottom: '24px', color: '#78350f', boxShadow: '0 10px 25px rgba(245, 158, 11, 0.2)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '1.8rem' }}>🚨</span>
+                              <div>
+                                <h3 style={{ margin: 0, color: '#b45309', fontSize: '1.25rem', fontWeight: 900 }}>
+                                  {t.oodHeader || '🚨 3. OOD Detection (Smart AI Control)'}
+                                </h3>
+                                <span style={{ background: '#f59e0b', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                  RESEARCH-GRADE HUMAN-IN-THE-LOOP WORKFLOW
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 800, color: '#92400e' }}>
+                              {t.oodMotto || '💡 "Galat answer dene se better hai \'pata nahi\' bolna"'}
+                            </div>
+                          </div>
+
+                          <p style={{ margin: '0 0 16px 0', fontSize: '0.95rem', lineHeight: 1.6, color: '#92400e' }}>
+                            <strong>Problem &amp; Solution:</strong> AI match confidence is <strong>{result.disease?.confidence || 0}%</strong> (below the <strong>60.0% reliability threshold</strong>). To prevent wrong disease predictions or harmful chemical sprays, our system flags this sample as <strong>Unknown / Out-of-Distribution Disease</strong> and triggers a Human-in-the-Loop agronomist escalation.
+                          </p>
+
+                          <div style={{ background: 'white', borderRadius: '14px', padding: '16px', border: '1px solid #fcd34d', marginBottom: '16px' }}>
+                            <h4 style={{ margin: '0 0 8px 0', color: '#b45309', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              🛡️ Interim Broad-Spectrum Protection Plan:
+                            </h4>
+                            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.9rem', color: '#78350f', lineHeight: 1.5 }}>
+                              {reportData.organicRemediesList && reportData.organicRemediesList.length > 0 ? (
+                                reportData.organicRemediesList.map((item, i) => <li key={i}>{item}</li>)
+                              ) : (
+                                <>
+                                  <li><strong>Broad-Spectrum Organic Spray:</strong> Apply Neem Oil Extract (5ml/L) + 5% Sour Buttermilk spray as protective bio-film.</li>
+                                  <li><strong>Leaf Isolation:</strong> Prune and seal heavily affected foliage in a plastic bag for agronomist review.</li>
+                                </>
+                              )}
+                            </ul>
+                          </div>
+
+                          <button
+                            onClick={() => setExpertSent(true)}
+                            disabled={expertSent}
+                            style={{
+                              width: '100%', padding: '14px 20px',
+                              background: expertSent ? '#16a34a' : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+                              color: 'white', border: 'none', borderRadius: '12px',
+                              fontWeight: 'bold', fontSize: '1rem', cursor: expertSent ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                              boxShadow: '0 4px 15px rgba(217, 119, 6, 0.3)'
+                            }}
+                          >
+                            {expertSent ? (t.escalateSent || '✅ Specimen Submitted to KVK Expert Network!') : (t.escalateExpert || '👨‍🌾 Escalate Specimen to Local Agronomist / KVK Expert')}
+                          </button>
+                        </div>
+                      )}
+
+                    {/* Section 2: Core Analysis Overview */}
+                    <h4 style={{ margin: '0 0 15px 0', color: '#1e293b', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      📊 Core Analysis Overview
+                    </h4>
+                    <div style={{ background: isDark ? '#1e293b' : '#f8fafc', overflowX: 'auto', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: isSmallMobile ? '0.75rem' : '0.9rem', textAlign: 'left' }}>
+                        <thead style={{ background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#cbd5e1' : '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                          <tr>
+                            <th style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 800 }}>Metric</th>
+                            <th style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 800 }}>Detection Result</th>
+                          </tr>
+                        </thead>
+                        <tbody style={{ color: isDark ? '#e2e8f0' : '#334155' }}>
                           <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '16px 20px', fontWeight: 600 }}>Weather Impact</td>
-                            <td style={{ padding: '16px 20px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span>Temp: <strong>{weather.temperature}°C</strong> | Humidity: <strong>{weather.humidity}%</strong></span>
-                                <span style={{ color: (weather.humidity > 70 && result.severity !== 'low') ? '#ef4444' : '#f59e0b', fontWeight: 700, fontSize: '0.9rem' }}>
-                                  ▶ {(weather.humidity > 70 && result.severity !== 'low') ? 'High Spread Risk' : 'Moderate Factor'}
+                            <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 600 }}>Detected Crop</td>
+                            <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 900, color: sevColor(result.severity), fontSize: isSmallMobile ? '0.9rem' : '1.1rem' }}>
+                              {reportData.displayCropName?.toUpperCase() || result.crop_name?.toUpperCase() || 'TOMATO'}
+                            </td>
+                          </tr>
+                          <tr style={{ borderBottom: '1px solid #e2e8f0', background: sevColor(result.severity) + '05' }}>
+                            <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px', fontWeight: 600, fontSize: isSmallMobile ? '0.8rem' : '0.95rem' }}>Primary Condition</td>
+                            <td style={{ padding: isSmallMobile ? '12px 15px' : '16px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 800, color: sevColor(result.severity), fontSize: isSmallMobile ? '0.9rem' : '1.1rem' }}>
+                                  {reportData.displayDisease || result.disease?.type?.replace(/___/g, ' - ').replace(/_/g, ' ') || 'Healthy'}
+                                </span>
+                                <span style={{ background: sevColor(result.severity), color: '#fff', padding: '4px 12px', borderRadius: '20px', fontWeight: 800, fontSize: isSmallMobile ? '0.7rem' : '0.85rem' }}>
+                                  {reportData.displayStatus || (result.severity === 'critical' ? 'CRITICAL RISK' : result.severity === 'high' ? 'HIGH RISK' : result.severity === 'medium' ? 'CAUTION' : 'SAFE')}
                                 </span>
                               </div>
                             </td>
                           </tr>
-                        )}
-                        <tr>
-                          <td style={{ padding: '16px 20px', fontWeight: 600 }}>Pest Traces</td>
-                          <td style={{ padding: '16px 20px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span style={{ fontWeight: 600, color: (result.pest_solution?.detected || result.pests?.length > 0) ? '#ef4444' : '#16a34a' }}>
-                                {(result.pest_solution?.detected || result.pests?.length > 0)
-                                  ? `${result.pest_solution?.pest_name || result.pests?.[0]?.label || 'Pest'} Trace Identified ⚠️`
-                                  : 'No visual pest traces found 🟢'}
+
+                          {/* Botanical Intelligence Rows injected here */}
+                          {result.disease?.details && (
+                            <>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ padding: '16px 20px', fontWeight: 600 }}>Pathogen / Cause</td>
+                                <td style={{ padding: '16px 20px', color: '#475569' }}>
+                                  {result.disease.details.cause}
+                                </td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ padding: '16px 20px', fontWeight: 600 }}>Visual Symptoms</td>
+                                <td style={{ padding: '16px 20px', color: '#475569' }}>
+                                  {result.disease.details.symptoms}
+                                </td>
+                              </tr>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ padding: '16px 20px', fontWeight: 600 }}>Preventive Strategy</td>
+                                <td style={{ padding: '16px 20px', color: '#475569' }}>
+                                  {result.disease.details.prevention}
+                                </td>
+                              </tr>
+                            </>
+                          )}
+
+                          <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '16px 20px', fontWeight: 600 }}>AI Confidence</td>
+                            <td style={{ padding: '16px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                <span style={{ fontWeight: 800 }}>{result.disease?.confidence || 0}% Accuracy Match</span>
+                                <div style={{ width: '150px', height: '10px', background: '#e2e8f0', borderRadius: '5px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${result.disease?.confidence || 0}%`, height: '100%', background: sevColor(result.severity) }}></div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                          {weather && !weather.error && (
+                            <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <td style={{ padding: '16px 20px', fontWeight: 600 }}>Weather Impact</td>
+                              <td style={{ padding: '16px 20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span>Temp: <strong>{weather.temperature}°C</strong> | Humidity: <strong>{weather.humidity}%</strong></span>
+                                  <span style={{ color: (weather.humidity > 70 && result.severity !== 'low') ? '#ef4444' : '#f59e0b', fontWeight: 700, fontSize: '0.9rem' }}>
+                                    ▶ {(weather.humidity > 70 && result.severity !== 'low') ? 'High Spread Risk' : 'Moderate Factor'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td style={{ padding: '16px 20px', fontWeight: 600 }}>Pest Traces</td>
+                            <td style={{ padding: '16px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ fontWeight: 600, color: (result.pest_solution?.detected || result.pests?.length > 0) ? '#ef4444' : '#16a34a' }}>
+                                  {(result.pest_solution?.detected || result.pests?.length > 0)
+                                    ? `${result.pest_solution?.pest_name || result.pests?.[0]?.label || 'Pest'} Trace Identified ⚠️`
+                                    : 'No visual pest traces found 🟢'}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Section 2: Professional Resolution Protocol */}
+                    <div style={{ marginTop: '30px' }}>
+                      <h4 style={{ margin: '0 0 15px 0', color: '#1e293b', fontSize: isSmallMobile ? '1rem' : '1.3rem', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                        📋 AI-Driven Resolution Protocol
+                      </h4>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
+                        {/* Pest Trace AI Solution Protocol Card */}
+                        {result.pest_solution && (
+                          <div style={{
+                            background: result.pest_solution.detected ? '#fef2f2' : '#f0fdf4',
+                            borderLeft: `5px solid ${result.pest_solution.detected ? '#8b5cf6' : '#22c55e'}`,
+                            borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px',
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+                              <h5 style={{ margin: 0, color: result.pest_solution.detected ? '#6d28d9' : '#166534', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {result.pest_solution.detected ? '🐛 Pest Trace AI Solution & Diagnostic' : '🟢 Pest Trace Status: Clear (No Pests Found)'}
+                              </h5>
+                              <span style={{ background: result.pest_solution.detected ? '#7c3aed' : '#22c55e', color: '#fff', padding: '3px 12px', borderRadius: '20px', fontWeight: 800, fontSize: '0.75rem' }}>
+                                {result.pest_solution.detected ? `DETECTED (${result.pest_solution.confidence || 90}% Match)` : 'HEALTHY FOLIAGE'}
                               </span>
                             </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
 
-                  {/* Section 2: Professional Resolution Protocol */}
-                  <div style={{ marginTop: '30px' }}>
-                    <h4 style={{ margin: '0 0 15px 0', color: '#1e293b', fontSize: isSmallMobile ? '1rem' : '1.3rem', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
-                      📋 AI-Driven Resolution Protocol
-                    </h4>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-
-                      {/* Pest Trace AI Solution Protocol Card */}
-                      {result.pest_solution && (
-                        <div style={{
-                          background: result.pest_solution.detected ? '#fef2f2' : '#f0fdf4',
-                          borderLeft: `5px solid ${result.pest_solution.detected ? '#8b5cf6' : '#22c55e'}`,
-                          borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px',
-                          boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                            <h5 style={{ margin: 0, color: result.pest_solution.detected ? '#6d28d9' : '#166534', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              {result.pest_solution.detected ? '🐛 Pest Trace AI Solution & Diagnostic' : '🟢 Pest Trace Status: Clear (No Pests Found)'}
-                            </h5>
-                            <span style={{ background: result.pest_solution.detected ? '#7c3aed' : '#22c55e', color: '#fff', padding: '3px 12px', borderRadius: '20px', fontWeight: 800, fontSize: '0.75rem' }}>
-                              {result.pest_solution.detected ? `DETECTED (${result.pest_solution.confidence || 90}% Match)` : 'HEALTHY FOLIAGE'}
-                            </span>
-                          </div>
-
-                          {result.pest_solution.detected ? (
-                            <div>
-                              <div style={{ fontWeight: 700, color: '#334155', marginBottom: '8px', fontSize: '0.95rem' }}>
-                                Pest: <strong style={{ color: '#6d28d9' }}>{result.pest_solution.pest_name}</strong> | <strong>Symptoms:</strong> {result.pest_solution.symptoms}
+                            {result.pest_solution.detected ? (
+                              <div>
+                                <div style={{ fontWeight: 700, color: '#334155', marginBottom: '8px', fontSize: '0.95rem' }}>
+                                  Pest: <strong style={{ color: '#6d28d9' }}>{result.pest_solution.pest_name}</strong> | <strong>Symptoms:</strong> {result.pest_solution.symptoms}
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '0.95rem' }}>
+                                  <li><strong style={{ color: '#1d4ed8' }}>Chemical Solution:</strong> {Array.isArray(result.pest_solution.chemical_control) ? result.pest_solution.chemical_control.join(', ') : result.pest_solution.chemical_control}</li>
+                                  <li><strong style={{ color: '#15803d' }}>Organic Remedy:</strong> {Array.isArray(result.pest_solution.organic_control) ? result.pest_solution.organic_control.join(', ') : result.pest_solution.organic_control}</li>
+                                  <li><strong style={{ color: '#b45309' }}>Immediate Action:</strong> {Array.isArray(result.pest_solution.immediate_action) ? result.pest_solution.immediate_action.join(', ') : result.pest_solution.immediate_action}</li>
+                                </ul>
                               </div>
-                              <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '0.95rem' }}>
-                                <li><strong style={{ color: '#1d4ed8' }}>Chemical Solution:</strong> {Array.isArray(result.pest_solution.chemical_control) ? result.pest_solution.chemical_control.join(', ') : result.pest_solution.chemical_control}</li>
-                                <li><strong style={{ color: '#15803d' }}>Organic Remedy:</strong> {Array.isArray(result.pest_solution.organic_control) ? result.pest_solution.organic_control.join(', ') : result.pest_solution.organic_control}</li>
-                                <li><strong style={{ color: '#b45309' }}>Immediate Action:</strong> {Array.isArray(result.pest_solution.immediate_action) ? result.pest_solution.immediate_action.join(', ') : result.pest_solution.immediate_action}</li>
-                              </ul>
+                            ) : (
+                              <p style={{ margin: 0, color: '#166534', fontSize: isSmallMobile ? '0.85rem' : '0.95rem' }}>
+                                No insect pests or feeding marks detected on this leaf. Deploy yellow sticky traps for perimeter defense.
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 1. Chemical Control */}
+                        <div style={{ background: '#f8fafc', borderLeft: '5px solid #3b82f6', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                          <h5 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            💊 Recommended Chemical Treatment
+                          </h5>
+                          <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
+                            {result.disease?.details?.chemical_control && Array.isArray(result.disease.details.chemical_control) ? (
+                              result.disease.details.chemical_control.map((item, i) => <li key={i}>{item}</li>)
+                            ) : (
+                              <li><strong>Primary Action:</strong> {result.disease?.details?.chemical_control || result.treatment || "Standard market fungicide."}</li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* 2. Organic / Biological Alternative */}
+                        <div style={{ background: '#f0fdf4', borderLeft: '5px solid #22c55e', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                          <h5 style={{ margin: '0 0 10px 0', color: '#166534', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            🌿 Organic & Biological Alternative
+                          </h5>
+                          <ul style={{ margin: 0, paddingLeft: '18px', color: '#15803d', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
+                            {result.disease?.details?.organic_control && Array.isArray(result.disease.details.organic_control) ? (
+                              result.disease.details.organic_control.map((item, i) => <li key={i}>{item}</li>)
+                            ) : (
+                              <li><strong>Eco-Friendly Approach:</strong> {result.disease?.details?.organic_control || "Apply neem oil or natural sulfur-based sprays to reduce chemical dependency."}</li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* 3. Cultural Preventative Actions */}
+                        <div style={{ background: '#fffbeb', borderLeft: '5px solid #f59e0b', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                          <h5 style={{ margin: '0 0 10px 0', color: '#b45309', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            🛡️ Field Management & Prevention
+                          </h5>
+                          <ul style={{ margin: 0, paddingLeft: '18px', color: '#92400e', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
+                            {result.recommendations && result.recommendations.length > 0 ? (
+                              result.recommendations.map((rec, i) => <li key={i}>{rec}</li>)
+                            ) : (
+                              <li>Avoid overhead watering and ensure proper plant spacing for airflow.</li>
+                            )}
+                          </ul>
+                        </div>
+
+                        {/* 4. AI System Alert Trigger & Yield Protector */}
+                        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginTop: '10px', color: '#f8fafc', position: 'relative', overflow: 'hidden' }}>
+                          <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.05, fontSize: '10rem' }}>
+                            ⚡
+                          </div>
+                          <h5 style={{ margin: '0 0 15px 0', color: '#38bdf8', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            📡 Next-Gen System Alert Assessment
+                          </h5>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                            <div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Alert Status Generated:</div>
+                              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: sevColor(result.severity) }}>
+                                {result.severity === 'critical' || result.severity === 'high' ? 'ACTIVE - IMMEDIATE ACTION REQUIRED' : 'PASSIVE - MONITORING'}
+                              </div>
                             </div>
-                          ) : (
-                            <p style={{ margin: 0, color: '#166534', fontSize: isSmallMobile ? '0.85rem' : '0.95rem' }}>
-                              No insect pests or feeding marks detected on this leaf. Deploy yellow sticky traps for perimeter defense.
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 1. Chemical Control */}
-                      <div style={{ background: '#f8fafc', borderLeft: '5px solid #3b82f6', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                        <h5 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          💊 Recommended Chemical Treatment
-                        </h5>
-                        <ul style={{ margin: 0, paddingLeft: '18px', color: '#334155', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
-                          {result.disease?.details?.chemical_control && Array.isArray(result.disease.details.chemical_control) ? (
-                            result.disease.details.chemical_control.map((item, i) => <li key={i}>{item}</li>)
-                          ) : (
-                            <li><strong>Primary Action:</strong> {result.disease?.details?.chemical_control || result.treatment || "Standard market fungicide."}</li>
-                          )}
-                        </ul>
-                      </div>
-
-                      {/* 2. Organic / Biological Alternative */}
-                      <div style={{ background: '#f0fdf4', borderLeft: '5px solid #22c55e', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                        <h5 style={{ margin: '0 0 10px 0', color: '#166534', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          🌿 Organic & Biological Alternative
-                        </h5>
-                        <ul style={{ margin: 0, paddingLeft: '18px', color: '#15803d', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
-                          {result.disease?.details?.organic_control && Array.isArray(result.disease.details.organic_control) ? (
-                            result.disease.details.organic_control.map((item, i) => <li key={i}>{item}</li>)
-                          ) : (
-                            <li><strong>Eco-Friendly Approach:</strong> {result.disease?.details?.organic_control || "Apply neem oil or natural sulfur-based sprays to reduce chemical dependency."}</li>
-                          )}
-                        </ul>
-                      </div>
-
-                      {/* 3. Cultural Preventative Actions */}
-                      <div style={{ background: '#fffbeb', borderLeft: '5px solid #f59e0b', borderRadius: '8px', padding: isSmallMobile ? '15px' : '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                        <h5 style={{ margin: '0 0 10px 0', color: '#b45309', fontSize: isSmallMobile ? '0.9rem' : '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          🛡️ Field Management & Prevention
-                        </h5>
-                        <ul style={{ margin: 0, paddingLeft: '18px', color: '#92400e', lineHeight: 1.6, fontSize: isSmallMobile ? '0.85rem' : '1rem' }}>
-                          {result.recommendations && result.recommendations.length > 0 ? (
-                            result.recommendations.map((rec, i) => <li key={i}>{rec}</li>)
-                          ) : (
-                            <li>Avoid overhead watering and ensure proper plant spacing for airflow.</li>
-                          )}
-                        </ul>
-                      </div>
-
-                      {/* 4. AI System Alert Trigger & Yield Protector */}
-                      <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginTop: '10px', color: '#f8fafc', position: 'relative', overflow: 'hidden' }}>
-                        <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.05, fontSize: '10rem' }}>
-                          ⚡
-                        </div>
-                        <h5 style={{ margin: '0 0 15px 0', color: '#38bdf8', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          📡 Next-Gen System Alert Assessment
-                        </h5>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                          <div>
-                            <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Alert Status Generated:</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: sevColor(result.severity) }}>
-                              {result.severity === 'critical' || result.severity === 'high' ? 'ACTIVE - IMMEDIATE ACTION REQUIRED' : 'PASSIVE - MONITORING'}
+                            <div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Projected Yield Preservation:</div>
+                              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#34d399' }}>Up to 85% with prompt action</div>
                             </div>
                           </div>
-                          <div>
-                            <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '1px' }}>Projected Yield Preservation:</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#34d399' }}>Up to 85% with prompt action</div>
+
+                          <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(56, 189, 248, 0.1)', borderLeft: '4px solid #38bdf8', color: '#bae6fd', fontSize: '0.95rem', lineHeight: 1.5 }}>
+                            <strong>System Insight:</strong> {result.severity === 'high' || result.severity === 'critical' ? "Environmental factors and pathogen spread probability are currently very high. Dispatch treatment protocols within 48 hours for optimal recovery." : "Crop is currently stable. Maintain baseline agricultural practices and continue using the scanner weekly."}
+                          </div>
+
+                          <div data-html2canvas-ignore="true" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', gap: '15px', flexWrap: 'wrap' }}>
+                            <button onClick={() => goToTab('queries')} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 16px rgba(34,197,94,0.3)', transition: '0.2s' }}>
+                              🩺 CONSULT EXPERT
+                            </button>
+                            <button onClick={() => goToTab('bot')} style={{ background: 'transparent', color: '#38bdf8', border: '2px solid #38bdf8', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', transition: '0.2s' }}>
+                              🤖 ASK KISAN BOT
+                            </button>
+                            <button onClick={handleDownloadReport} style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '12px 24px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', zIndex: 10 }}>
+                              📥 OFFLINE REPORT
+                            </button>
                           </div>
                         </div>
 
-                        <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(56, 189, 248, 0.1)', borderLeft: '4px solid #38bdf8', color: '#bae6fd', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                          <strong>System Insight:</strong> {result.severity === 'high' || result.severity === 'critical' ? "Environmental factors and pathogen spread probability are currently very high. Dispatch treatment protocols within 48 hours for optimal recovery." : "Crop is currently stable. Maintain baseline agricultural practices and continue using the scanner weekly."}
-                        </div>
-
-                        <div data-html2canvas-ignore="true" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', gap: '15px', flexWrap: 'wrap' }}>
-                          <button onClick={() => goToTab('queries')} style={{ background: '#22c55e', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 16px rgba(34,197,94,0.3)', transition: '0.2s' }}>
-                            🩺 CONSULT EXPERT
-                          </button>
-                          <button onClick={() => goToTab('bot')} style={{ background: 'transparent', color: '#38bdf8', border: '2px solid #38bdf8', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', transition: '0.2s' }}>
-                            🤖 ASK KISAN BOT
-                          </button>
-                          <button onClick={handleDownloadReport} style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '12px 24px', borderRadius: '10px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', zIndex: 10 }}>
-                            📥 OFFLINE REPORT
-                          </button>
-                        </div>
                       </div>
-
                     </div>
-                  </div>
 
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {result?.error && (
             <motion.div

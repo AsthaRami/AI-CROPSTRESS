@@ -73,9 +73,12 @@ def detect_image():
 
     try:
         # Run AI analysis (with Quality Guard check)
+        print(f"DEBUG /api/detect/image: file.filename={file.filename}, filepath={filepath}")
         try:
-            analysis = ai_service.analyze(filepath)
+            analysis = ai_service.analyze(filepath, original_filename=file.filename)
+            print(f"DEBUG /api/detect/image: crop_name={analysis.get('crop_name')}, disease={analysis.get('disease', {}).get('type')}")
         except Exception as analyze_err:
+            print(f"DEBUG /api/detect/image ERROR: {analyze_err}")
             analysis = ai_service.analyze_fallback(filepath, str(analyze_err))
 
         if analysis.get('is_rejected'):
@@ -102,7 +105,7 @@ def detect_image():
         # Create an alert ONLY if critical, but send email for HEALTHY as well
         email_sent = False
         positive_message = None
-        crop_name = (analysis.get('disease') or {}).get('type', 'Unknown').split('___')[0]
+        crop_name = analysis.get('crop_name') or (analysis.get('disease') or {}).get('type', 'Unknown').split('___')[0]
         disease_name = (analysis.get('disease') or {}).get('type', 'Unknown').replace('___', ' - ').replace('_', ' ')
         severity = analysis.get('severity')
 
@@ -245,7 +248,7 @@ def detect_batch():
         f.save(filepath)
 
         try:
-            analysis = ai_service.analyze(filepath)
+            analysis = ai_service.analyze(filepath, original_filename=f.filename)
         except Exception as err:
             analysis = ai_service.analyze_fallback(filepath, str(err))
 
@@ -281,7 +284,7 @@ def detect_batch():
         gradcam_filename = analysis.get('gradcam_path')
         infection_overlay_filename = analysis.get('infection_overlay_path')
 
-        crop_name = raw_disease.split('___')[0] if '___' in raw_disease else 'Crop'
+        crop_name = analysis.get('crop_name') or (raw_disease.split('___')[0] if '___' in raw_disease else 'Crop')
         display_disease = raw_disease.replace('___', ' - ').replace('_', ' ')
 
         # Save to DB
