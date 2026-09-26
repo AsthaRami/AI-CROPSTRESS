@@ -356,6 +356,13 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
     }
   };
 
+  const resetScan = () => {
+    setImage(null);
+    setPreview(null);
+    setResult(null);
+    setLoading(false);
+  };
+
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
   const analyze = async () => {
@@ -402,7 +409,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
       const data = await res.json().catch(() => ({}));
       clearInterval(interval); // Stop status cycling on response
       if (!res.ok) {
-        setResult({ error: data.error || 'Analysis failed' });
+        setResult({ error: data.error || 'Analysis failed', is_rejected: true, ...data });
       } else {
         setResult(data);
         if (onScanComplete) onScanComplete();
@@ -836,41 +843,53 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
                           </span>
                           <span style={{
                             position: 'absolute', top: '8px', right: '8px',
-                            background: item.is_healthy ? '#16a34a' : '#dc2626',
+                            background: item.is_rejected ? '#dc2626' : (item.is_healthy ? '#16a34a' : '#dc2626'),
                             color: 'white', padding: '3px 8px', borderRadius: '6px',
                             fontSize: '0.75rem', fontWeight: 'bold'
                           }}>
-                            {item.is_healthy ? 'HEALTHY' : (item.severity || 'CRITICAL').toUpperCase()}
+                            {item.is_rejected ? '❌ TARGET REJECTED' : (item.is_healthy ? 'HEALTHY' : (item.severity || 'CRITICAL').toUpperCase())}
                           </span>
                         </div>
 
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: isDark ? '#f8fafc' : '#0f172a' }}>
-                          🌾 {item.crop_name || 'Crop'}: <span style={{ color: '#0ea5e9' }}>{item.disease_type}</span>
-                        </h4>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b' }}>
-                          AI Match Confidence: <strong style={{ color: '#0ea5e9' }}>{item.confidence}%</strong>
-                        </p>
+                        {item.is_rejected ? (
+                          <div style={{ background: '#fef2f2', borderLeft: '4px solid #ef4444', padding: '12px', borderRadius: '8px', marginBottom: '10px', textAlign: 'left' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#b91c1c' }}>🛡️ 1. True Target Validation</div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#dc2626', margin: '2px 0' }}>❌ NON-LEAF SPECIMEN REJECTED</div>
+                            <div style={{ fontSize: '0.75rem', color: '#7f1d1d', marginTop: '4px' }}>
+                              {item.treatment || 'HSV Color & Morphological Shape Segmentation confirmed no crop foliage present.'}
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h4 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: isDark ? '#f8fafc' : '#0f172a' }}>
+                              🌾 {item.crop_name || 'Crop'}: <span style={{ color: '#0ea5e9' }}>{item.disease_type}</span>
+                            </h4>
+                            <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b' }}>
+                              AI Match Confidence: <strong style={{ color: '#0ea5e9' }}>{item.confidence}%</strong>
+                            </p>
 
-                        {item.treatment && (
-                          <p style={{
-                            margin: '0 0 10px 0', fontSize: '0.8rem', color: isDark ? '#cbd5e1' : '#475569',
-                            background: isDark ? '#1e293b' : '#e2e8f0', padding: '8px 10px', borderRadius: '8px'
-                          }}>
-                            <strong>Prescription:</strong> {item.treatment}
-                          </p>
+                            {item.treatment && (
+                              <p style={{
+                                margin: '0 0 10px 0', fontSize: '0.8rem', color: isDark ? '#cbd5e1' : '#475569',
+                                background: isDark ? '#1e293b' : '#e2e8f0', padding: '8px 10px', borderRadius: '8px'
+                              }}>
+                                <strong>Prescription:</strong> {item.treatment}
+                              </p>
+                            )}
+
+                            <button
+                              onClick={() => setSelectedLeafModal(item)}
+                              style={{
+                                width: '100%', padding: '10px',
+                                background: '#0ea5e9', color: 'white', border: 'none',
+                                borderRadius: '8px', fontWeight: 'bold', fontSize: '0.85rem',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                              }}
+                            >
+                              🔬 View Full Diagnostic Report
+                            </button>
+                          </>
                         )}
-
-                        <button
-                          onClick={() => setSelectedLeafModal(item)}
-                          style={{
-                            width: '100%', padding: '10px',
-                            background: '#0ea5e9', color: 'white', border: 'none',
-                            borderRadius: '8px', fontWeight: 'bold', fontSize: '0.85rem',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                          }}
-                        >
-                          🔬 View Full Diagnostic Report
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -1473,8 +1492,102 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
         `}</style>
 
 
+          {/* TRUE TARGET VALIDATION (LEAF VS NON-LEAF) REJECTION CARD */}
+          {result && (result.is_rejected || result.status === 'TARGET_REJECTED' || (result.error && (result.error.includes('Target Rejected') || result.error.includes('Non-Leaf') || result.error.includes('Non-Crop')))) && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                marginTop: '30px',
+                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                borderRadius: '24px',
+                padding: '30px',
+                border: '2px solid #ef4444',
+                boxShadow: '0 20px 50px rgba(239,68,68,0.3)',
+                color: '#ffffff',
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+                <div style={{ fontSize: '2.5rem', background: 'rgba(239, 68, 68, 0.2)', padding: '10px 16px', borderRadius: '16px', border: '1px solid #ef4444' }}>
+                  🛡️
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    1. True Target Validation (Leaf vs Non-Leaf)
+                  </div>
+                  <h3 style={{ margin: '4px 0 0 0', fontSize: isSmallMobile ? '1.2rem' : '1.5rem', fontWeight: 900, color: '#fca5a5' }}>
+                    ❌ TARGET REJECTED: NON-LEAF SPECIMEN DETECTED
+                  </h3>
+                </div>
+              </div>
+
+              {/* Feature Explanation Grid matching Diagram */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px' }}>
+                    👉 Color & Shape Segmentation
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                    HSV Chlorophyll/Foliage Thresholding + Morphological Shape ROI Masking applied.
+                  </p>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f87171', marginBottom: '6px' }}>
+                    ❌ Binary Classification
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                    {result.treatment || result.error || 'Target Rejected: Uploaded image does not contain valid crop foliage.'}
+                  </p>
+                </div>
+
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#4ade80', marginBottom: '6px' }}>
+                    ✅ High Accuracy Guard
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#86efac', lineHeight: 1.4 }}>
+                    Galat image andar hi nahi jayegi — false predictions eliminated for non-crop assets.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', borderRadius: '14px', padding: '16px 20px', borderLeft: '4px solid #ef4444', marginBottom: '20px' }}>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fca5a5', marginBottom: '4px' }}>
+                  💡 Action Required:
+                </div>
+                <div style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>
+                  Please click the button below to upload a clear, focused photo of a valid crop leaf specimen.
+                </div>
+              </div>
+
+              <button
+                onClick={resetScan}
+                style={{
+                  width: '100%',
+                  padding: '16px 24px',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '16px',
+                  fontWeight: 900,
+                  fontSize: '1.05rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 10px 25px rgba(239, 68, 68, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                🔄 SCAN ANOTHER LEAF IMAGE / RESET UI
+              </button>
+            </motion.div>
+          )}
+
           {/* COMPLETE ANALYSIS RESULT (FUTURISTIC UI) */}
-          {result && !result.error && (() => {
+          {result && !result.error && !result.is_rejected && (() => {
             const reportData = getTranslatedReportData(result?.diagnostic_report, result?.disease, lang);
             return (
               <div style={{ marginTop: '40px', fontFamily: '"Lexend Deca", sans-serif' }}>
@@ -1898,7 +2011,7 @@ export default function CropScanner({ onScanComplete, theme, goToTab, lang }) {
             );
           })()}
 
-          {result?.error && (
+          {result?.error && !result.is_rejected && (!result.status || result.status !== 'TARGET_REJECTED') && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}

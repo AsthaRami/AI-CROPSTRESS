@@ -82,9 +82,7 @@ def detect_image():
             analysis = ai_service.analyze_fallback(filepath, str(analyze_err))
 
         if analysis.get('is_rejected'):
-            return jsonify({
-                'error': analysis.get('error', 'Non-leaf image detected. Please upload a clear crop leaf photo.')
-            }), 400
+            return jsonify(analysis), 200
 
         # Persist detection in database
         # user_id was set above (fallback to 1 if missing)

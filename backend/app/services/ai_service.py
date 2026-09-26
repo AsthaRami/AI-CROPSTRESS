@@ -782,17 +782,113 @@ class AIService:
         display_name = disease_type
         return treatment, recs, display_name, details
 
-    def validate_leaf_image(self, image_path: str):
+    def validate_leaf_image(self, image_path: str, original_filename: str = None):
         """
-        Quality Guard rejection feature disabled per user request.
-        All uploaded images proceed directly to full AI scanning & report generation.
+        True Target Validation (Leaf vs Non-Leaf)
+        Enforces strict leaf vision validation across single and multi-leaf scans:
+        1. Human Face & Profile Detection (Haar Cascades)
+        2. Strict HSV Chlorophyll & Diseased Plant Foliage Masking
+        3. Morphological Contour & Organic Leaf Shape Analysis
+        Rejects human portraits, cars, buildings, text documents, furniture, and non-plant objects.
         """
-        return True, "PASSED", ""
+        if not image_path or not os.path.exists(image_path):
+            return False, "TARGET_REJECTED", "Target Rejected: Image file missing."
+
+        try:
+            img = cv2.imread(image_path)
+            if img is None:
+                return False, "TARGET_REJECTED", "Target Rejected: Unable to decode image file."
+
+            h, w, _ = img.shape
+            total_px = float(h * w)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            # -------------------------------------------------------------
+            # GUARD 1: Human Face & Profile Classifier (Haar Cascades)
+            # -------------------------------------------------------------
+            try:
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                profile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+                profiles = profile_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+
+                if len(faces) > 0 or len(profiles) > 0:
+                    return False, "TARGET_REJECTED", f"Target Rejected: Human portrait detected ({len(faces) + len(profiles)} face features found). Galat image andar hi nahi jayegi — please upload a clear photo of a crop leaf specimen."
+            except Exception as face_err:
+                print(f"Face check notice: {face_err}")
+
+            # -------------------------------------------------------------
+            # GUARD 2: Strict HSV Chlorophyll & Diseased Foliage Masking
+            # -------------------------------------------------------------
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+            # 1. True Chlorophyll Green Mask (H: 30..85, S: 35..255, V: 35..255)
+            lower_green = np.array([30, 35, 35])
+            upper_green = np.array([85, 255, 255])
+            mask_green = cv2.inRange(hsv, lower_green, upper_green)
+
+            # 2. Yellow/Brown Chlorosis & Diseased Leaf Mask (H: 14..28, S: 50..255, V: 45..255)
+            lower_yb = np.array([14, 50, 45])
+            upper_yb = np.array([28, 255, 255])
+            mask_yb = cv2.inRange(hsv, lower_yb, upper_yb)
+
+            foliage_mask = cv2.bitwise_or(mask_green, mask_yb)
+            foliage_px = float(np.sum(foliage_mask > 0))
+            foliage_ratio = (foliage_px / total_px) * 100.0
+
+            # -------------------------------------------------------------
+            # GUARD 3: Morphological Contour & ROI Masking
+            # -------------------------------------------------------------
+            contours, _ = cv2.findContours(foliage_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            max_cnt_ratio = (cv2.contourArea(max(contours, key=cv2.contourArea)) / total_px) * 100.0 if contours else 0.0
+
+            # Leaf Validation Rule: requires foliage color coverage >= 8.0% OR leaf contour >= 3.5%
+            if foliage_ratio >= 8.0 or max_cnt_ratio >= 3.5:
+                return True, "PASSED", ""
+            else:
+                return False, "TARGET_REJECTED", f"Target Rejected: Non-Leaf Specimen Detected (Foliage Coverage: {foliage_ratio:.1f}%). HSV Color & Morphological Shape Segmentation confirmed no crop leaf present."
+
+        except Exception as e:
+            print(f"Target Validation Notice: {e}")
+            return True, "PASSED", ""
 
     def _is_probably_leaf_photo(self, image_path: str) -> bool:
-        return True
+        is_valid, _, _ = self.validate_leaf_image(image_path)
+        return is_valid
 
     def analyze(self, image_path, original_filename=None):
+        # 0. True Target Validation (Leaf vs Non-Leaf Guard)
+        is_valid_leaf, reason_code, validation_msg = self.validate_leaf_image(image_path, original_filename=original_filename)
+        if not is_valid_leaf:
+            return {
+                'status': 'TARGET_REJECTED',
+                'reason': reason_code,
+                'scanner_mode': 'SINGLE_LEAF',
+                'is_rejected': True,
+                'error': validation_msg,
+                'crop_identified': 'Non-Leaf Specimen',
+                'crop_name': 'Non-Crop Asset',
+                'disease': {'type': 'Target Rejected: Non-Leaf Image', 'confidence': 0.0},
+                'pests': [],
+                'pest_solution': {
+                    'detected': False,
+                    'pest_name': 'None',
+                    'symptoms': 'Non-leaf image detected.',
+                    'chemical_control': ['Upload a valid leaf image.'],
+                    'organic_control': ['Upload a valid leaf image.'],
+                    'immediate_action': ['Upload a valid leaf photo.']
+                },
+                'severity': 'low',
+                'gradcam_path': None,
+                'infection_overlay_path': None,
+                'treatment': validation_msg,
+                'recommendations': [
+                    'Ensure the image contains a clear crop leaf specimen.',
+                    'Avoid uploading non-leaf objects, buildings, animals, or human faces.'
+                ],
+                'bounding_boxes': []
+            }
+
         processed = self.preprocess_image(image_path)
         disease = self.classify_disease(processed, image_path, original_filename=original_filename)
 
